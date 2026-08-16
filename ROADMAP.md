@@ -8,7 +8,7 @@ Build a security-first Android password manager that remains interoperable with 
 
 **Status: in progress — foundation / Phase 0**
 
-The repository currently contains the project documentation baseline, Android/Kotlin↔Rust architecture decisions, a Rust workspace with an initial `vault-core` boundary, KDBX-engine research, form/autofill fixtures, repository policy checks and a green `Foundation` GitHub Actions workflow. There is not yet a production Android application or complete KDBX vault implementation.
+The repository currently contains the project documentation baseline, Android/Kotlin↔Rust architecture decisions, a Rust workspace under `rust/` with an initial `vault-core` boundary, KDBX-engine research, form/autofill fixtures, repository policy checks and a green `Foundation` GitHub Actions workflow. There is not yet a production Android application or complete KDBX vault implementation.
 
 `main` is currently the only development branch. This file is the source of truth for project execution until a branch/PR workflow is introduced.
 
@@ -18,7 +18,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Decide on a Kotlin Android application with an isolated Rust vault core.
 - [x] Record the Android platform baseline in ADR 0001.
 - [x] Record the Kotlin/Rust interoperability boundary in ADR 0002.
-- [x] Create the Rust workspace and initial `vault-core` crate.
+- [x] Create the Rust workspace under `rust/` and initial `rust/vault-core` crate.
 - [x] Add policy tooling that constrains the Rust core boundary.
 - [x] Add foundation CI and confirm the current `Foundation` workflow is green.
 - [x] Add contribution and security documentation.
@@ -28,8 +28,8 @@ The repository currently contains the project documentation baseline, Android/Ko
 ## Phase 0 — security and architecture freeze before production code
 
 - [ ] Commit the final repository license before production implementation begins. Current recommendation: `AGPL-3.0-or-later`, subject to final compatibility review of dependencies and any code reused from upstream/reference projects.
-- [ ] Write the project threat model covering vault-at-rest, unlocked-memory exposure, clipboard, screenshots/recents, autofill, IPC/JNI/FFI boundaries, backups, storage providers, compromised web content and malicious local apps.
-- [ ] Define the exact Rust vault-core API contract: open/create/save/lock, entry/group CRUD, key derivation, protected-value handling, attachments and explicit zeroization/lifetime rules.
+- [x] Write the project threat model covering vault-at-rest, unlocked-memory exposure, clipboard, screenshots/recents, autofill, IPC/JNI/FFI boundaries, backups, storage providers, compromised web content and malicious local apps. See `docs/THREAT_MODEL.md`.
+- [x] Define the Rust vault-core API contract: lifecycle/open/create/save/lock, entry/group CRUD, explicit protected-value retrieval, attachments, opaque handle semantics, FFI error handling and zeroization/lifetime rules. See `docs/VAULT_CORE_API.md`.
 - [ ] Select the initial KDBX implementation strategy after validating candidate Rust libraries against required KDBX3/KDBX4 compatibility, Argon2/AES-KDF, AES/ChaCha20, protected streams, attachments, custom data and round-trip preservation.
 - [ ] Create deterministic KDBX compatibility fixtures and round-trip tests before exposing vault operations to Android.
 - [ ] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format.
@@ -37,6 +37,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 ## Phase 1 — minimal vault core
 
+- [ ] Implement handle registry and explicit lock/invalidation semantics independent of the KDBX engine.
 - [ ] Implement read-only KDBX open/decrypt in Rust against deterministic fixtures.
 - [ ] Expose a minimal safe Kotlin↔Rust bridge with opaque handles; do not expose decrypted database internals as long-lived serialized blobs across FFI.
 - [ ] Implement explicit vault lock and sensitive-memory cleanup paths.
@@ -94,4 +95,4 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 ## Completion status
 
-**Not fully completed.** Foundation scaffolding is green. The immediate priority is Phase 0: finalize the license and threat model, freeze the Rust vault-core/KDBX compatibility contract, then implement the minimal read-only vault core against deterministic fixtures.
+**Not fully completed.** The threat model and vault-core API boundary are now frozen at documentation level. The immediate priority is to resolve the license gate and select/prove the KDBX engine against deterministic compatibility fixtures before production vault implementation begins.
