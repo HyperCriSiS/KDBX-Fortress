@@ -1,0 +1,9 @@
+{
+  "id": "browser-origin-form",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"u": "Username", "p": "CurrentPassword"}},
+  "fields": [
+    {"id": "u", "inputType": "text", "autofillHints": ["username"], "htmlType": "text", "name": "login", "focused": true},
+    {"id": "p", "inputType": "password", "autofillHints": ["password"], "htmlType": "password", "name": "password", "focused": false}
+  ]
+}

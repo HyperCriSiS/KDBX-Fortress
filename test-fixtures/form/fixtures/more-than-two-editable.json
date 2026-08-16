@@ -1,0 +1,10 @@
+{
+  "id": "more-than-two-editable",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"u": "Username", "org": "Unknown", "p": "CurrentPassword"}},
+  "fields": [
+    {"id": "u", "inputType": "text", "autofillHints": [], "htmlType": null, "name": "account", "focused": true},
+    {"id": "org", "inputType": "text", "autofillHints": [], "htmlType": null, "name": "organization", "focused": false},
+    {"id": "p", "inputType": "password", "autofillHints": [], "htmlType": null, "name": "secret", "focused": false}
+  ]
+}

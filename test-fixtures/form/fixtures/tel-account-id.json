@@ -1,0 +1,9 @@
+{
+  "id": "tel-account-id",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"a": "AccountId", "p": "CurrentPassword"}},
+  "fields": [
+    {"id": "a", "inputType": "tel", "autofillHints": [], "htmlType": null, "name": "account_id", "focused": true},
+    {"id": "p", "inputType": "password", "autofillHints": ["password"], "htmlType": null, "name": "password", "focused": false}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "otp-split",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"o1": "OTP", "o2": "OTP", "o3": "OTP", "o4": "OTP", "o5": "OTP", "o6": "OTP"}},
+  "fields": [
+    {"id": "o1", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_1", "focused": true},
+    {"id": "o2", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_2", "focused": false},
+    {"id": "o3", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_3", "focused": false},
+    {"id": "o4", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_4", "focused": false},
+    {"id": "o5", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_5", "focused": false},
+    {"id": "o6", "inputType": "number", "autofillHints": [], "htmlType": null, "name": "otp_6", "focused": false}
+  ]
+}

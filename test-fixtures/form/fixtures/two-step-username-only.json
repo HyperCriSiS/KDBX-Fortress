@@ -1,0 +1,6 @@
+{
+  "id": "two-step-username-only",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"u": "Username"}},
+  "fields": [{"id": "u", "inputType": "text", "autofillHints": ["username"], "htmlType": null, "name": "login", "focused": true}]
+}

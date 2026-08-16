@@ -1,0 +1,30 @@
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+.cxx/
+.externalNativeBuild/
+
+# Rust
+rust/target/
+target/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local / secrets
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+
+# Python tooling
+__pycache__/
+*.pyc

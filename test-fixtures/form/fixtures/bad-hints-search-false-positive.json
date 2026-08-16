@@ -1,0 +1,6 @@
+{
+  "id": "bad-hints-search-false-positive",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"q": "Unknown"}},
+  "fields": [{"id": "q", "inputType": "text", "autofillHints": ["username"], "htmlType": null, "name": "search_query", "focused": true}]
+}

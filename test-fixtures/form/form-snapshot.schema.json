@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kdbx-bastion.invalid/schema/form-snapshot.schema.json",
+  "title": "KDBX Bastion synthetic FormSnapshot fixture",
+  "type": "object",
+  "required": ["id", "source", "expected", "fields"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+    "source": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["synthetic", "public-bug-class"]},
+        "reference": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "expected": {
+      "type": "object",
+      "required": ["roles"],
+      "properties": {
+        "roles": {"type": "object", "additionalProperties": {"type": "string"}},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "inputType"],
+        "properties": {
+          "id": {"type": "string"},
+          "inputType": {"type": "string"},
+          "autofillHints": {"type": "array", "items": {"type": "string"}},
+          "htmlType": {"type": ["string", "null"]},
+          "name": {"type": ["string", "null"]},
+          "focused": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

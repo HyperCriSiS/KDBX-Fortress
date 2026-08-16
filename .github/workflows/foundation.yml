@@ -1,0 +1,67 @@
+name: Foundation
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-policy:
+    name: Source policy and fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run foundation checks
+        run: python tools/run_foundation_checks.py
+
+  rust-core:
+    name: Rust vault-core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify pinned Rust toolchain
+        run: |
+          rustc --version --verbose
+          cargo --version
+          rustup --version
+
+      - name: Format
+        run: cargo fmt --manifest-path rust/Cargo.toml --all --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
+
+      - name: Unit tests
+        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets
+
+      - name: Add Android Rust targets
+        run: rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Check Android ARM64 target
+        run: cargo check --manifest-path rust/Cargo.toml --workspace --target aarch64-linux-android
+
+      - name: Check Android x86_64 target
+        run: cargo check --manifest-path rust/Cargo.toml --workspace --target x86_64-linux-android

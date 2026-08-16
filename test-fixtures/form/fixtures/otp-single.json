@@ -1,0 +1,9 @@
+{
+  "id": "otp-single",
+  "source": {"kind": "synthetic"},
+  "expected": {"roles": {"u": "Username", "o": "OTP"}},
+  "fields": [
+    {"id": "u", "inputType": "text", "autofillHints": ["username"], "htmlType": null, "name": "username", "focused": false},
+    {"id": "o", "inputType": "number", "autofillHints": ["smsOTPCode"], "htmlType": null, "name": "otp", "focused": true}
+  ]
+}
