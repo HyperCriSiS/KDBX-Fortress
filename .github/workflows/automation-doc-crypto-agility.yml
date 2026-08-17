@@ -1,0 +1,76 @@
+name: automation document crypto agility policy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/automation-doc-crypto-agility.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  document:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add policy and update roadmap
+        run: |
+          cat > docs/CRYPTO_AGILITY.md <<'EOF'
+          # Crypto-agility policy
+
+          KDBX Bastion treats standard KDBX interoperability as a hard compatibility boundary. Cryptographic agility may add stronger implementation choices, but it must not silently create a database format that standard KeePass/KDBX implementations cannot read.
+
+          ## Baseline rules
+
+          - Standard KDBX encryption, KDF and integrity primitives remain the default storage format.
+          - The core must select algorithms from explicit, versioned identifiers and must reject unknown or malformed parameters rather than guessing.
+          - Algorithm implementations remain behind narrow vault-core interfaces so a primitive can be replaced without changing Android/UI code or exposing key material across the FFI boundary.
+          - Write support must preserve all supported KDBX parameters on round-trip unless the user explicitly requests a compatible migration.
+          - Deprecated or weak-but-valid legacy choices may be readable for interoperability, while creation of new vaults can use stronger standard KDBX defaults.
+
+          ## Optional stronger protection
+
+          Any future post-quantum or hybrid protection must be additive and opt-in. It must not masquerade as ordinary KDBX or overwrite the only interoperable copy of a vault with a private extension.
+
+          Acceptable designs include a separately versioned envelope or sidecar only after its threat model, recovery semantics, downgrade behavior and interoperability impact are documented. The normal `.kdbx` payload must remain recoverable through the documented compatibility path.
+
+          No algorithm may be described as post-quantum secure merely because it is new or non-standard. Such claims require a standardized primitive, a documented security model and an implementation/review path appropriate for secret-storage software.
+
+          ## Migration and downgrade behavior
+
+          - Cryptographic migrations are explicit user operations and must be atomic.
+          - Before replacing a vault, the new artifact must reopen successfully with the intended credentials and pass integrity checks.
+          - A failed migration leaves the prior valid vault untouched.
+          - Importing a vault with stronger/unknown parameters must never silently downgrade it on save.
+          - Export to a compatibility profile must clearly state which protections or metadata cannot be represented.
+
+          ## Testing gates
+
+          Before a new cryptographic configuration is enabled for writes, the project must have deterministic fixtures for read, write, reopen and independent interoperability where an external implementation exists. Negative tests must cover malformed headers/parameters, authentication failure, excessive resource requests and unsupported algorithm identifiers.
+
+          Security-sensitive algorithm or format changes require explicit review and cannot be justified solely by benchmark improvements.
+          EOF
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('ROADMAP.md')
+          s = p.read_text(encoding='utf-8')
+          old = '- [ ] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format.'
+          new = '- [x] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format. See `docs/CRYPTO_AGILITY.md`.'
+          if old not in s:
+              raise SystemExit('ROADMAP crypto-agility anchor not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+          python tools/validate_kdbx_fixtures.py
+          git diff --check
+      - name: Commit validated policy and remove helper
+        run: |
+          rm .github/workflows/automation-doc-crypto-agility.yml
+          git config user.name 'HyperCriSiS'
+          git config user.email 'dev.github@w3b.world'
+          git add docs/CRYPTO_AGILITY.md ROADMAP.md .github/workflows/automation-doc-crypto-agility.yml
+          git diff --cached --check
+          git commit -m 'docs: define crypto agility policy'
+          git push origin HEAD:main
