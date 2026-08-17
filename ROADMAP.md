@@ -38,7 +38,7 @@ The repository currently contains the project documentation baseline, Android/Ko
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
-- [ ] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format.
+- [x] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format. See `docs/CRYPTO_AGILITY.md`.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
 ## Phase 1 — minimal vault core
