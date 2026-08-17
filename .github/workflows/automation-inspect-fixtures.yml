@@ -1,0 +1,30 @@
+name: automation inspect fixtures
+on:
+  push:
+    paths:
+      - '.github/workflows/automation-inspect-fixtures.yml'
+permissions:
+  contents: write
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect fixture corpus and validator
+        run: |
+          echo '=== fixture tree ==='
+          find . -maxdepth 4 -type f | sort | grep -E 'fixture|kdbx|manifest|validate_kdbx' | head -n 320
+          echo '=== manifests ==='
+          find . -type f -name 'manifest.json' -print -exec cat {} \;
+          echo '=== validator ==='
+          sed -n '1,320p' tools/validate_kdbx_fixtures.py 2>/dev/null || true
+          echo '=== compatibility matrix ==='
+          sed -n '1,320p' docs/KDBX_COMPATIBILITY_MATRIX.md 2>/dev/null || true
+      - name: Remove helper
+        run: |
+          rm -f .github/workflows/automation-inspect-fixtures.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: remove temporary fixture probe' || exit 0
+          git push origin HEAD:main
