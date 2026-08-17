@@ -1,0 +1,41 @@
+name: Sync Format300 license audit roadmap
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/KDBX3_FORMAT300_LICENSE_AUDIT.md'
+      - '.github/workflows/automation-sync-format300-license-audit.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Record verified license audit
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ROADMAP.md')
+          s = p.read_text(encoding='utf-8')
+          line = '- [x] Audit upstream KeePassXC `tests`/`tests/data` for fixture-scoped licensing metadata for `Format300.kdbx`; no local `LICENSE`, `COPYING`, or `README` assignment exists, while the repository root carries multiple license families, so fixture redistribution remains unresolved and import stays blocked.'
+          if line not in s:
+              marker = '## Completion status'
+              if marker not in s:
+                  raise SystemExit('completion marker missing')
+              s = s.replace(marker, line + '\n\n' + marker, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit roadmap and remove helper
+        shell: bash
+        run: |
+          rm -f .github/workflows/automation-sync-format300-license-audit.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'docs: record Format300 license audit' || exit 0
+          git push origin HEAD:main
