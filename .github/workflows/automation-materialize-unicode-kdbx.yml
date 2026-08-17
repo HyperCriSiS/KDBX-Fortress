@@ -1,0 +1,108 @@
+name: automation materialize unicode KDBX fixture
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/automation-materialize-unicode-kdbx.yml'
+permissions:
+  contents: write
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate and verify Unicode fixture
+        run: |
+          python -m pip install --disable-pip-version-check pykeepass
+          python - <<'PY'
+          from pathlib import Path
+          from pykeepass import PyKeePass, create_database
+          import hashlib, json
+
+          root = Path('test-fixtures/kdbx')
+          out = root / 'unicode-kdbx4.kdbx'
+          password = 'fixture-password'
+          kp = create_database(str(out), password=password)
+          group_name = 'Synthetisch-Üñîçødé-测试'
+          title = 'Anmeldung 🔐 – 東京'
+          username = 'nützer@example.test'
+          secret = 'pässwörd-Δ-秘密'
+          url = 'https://例え.test/über'
+          notes = 'Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀'
+          group = kp.add_group(kp.root_group, group_name)
+          kp.add_entry(group, title, username, secret, url=url, notes=notes)
+          kp.save()
+
+          reopened = PyKeePass(str(out), password=password)
+          entry = reopened.find_entries(title=title, first=True)
+          assert entry is not None
+          assert entry.username == username
+          assert entry.password == secret
+          assert entry.url == url
+          assert entry.notes == notes
+          assert entry.group.name == group_name
+
+          manifest_path = root / 'manifest.json'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          item = {
+              'file': out.name,
+              'sha256': hashlib.sha256(out.read_bytes()).hexdigest(),
+              'password': password,
+              'format': 'KDBX4',
+              'purpose': 'Unicode round-trip interoperability fixture',
+              'expected': {
+                  'group': group_name,
+                  'title': title,
+                  'username': username,
+                  'password': secret,
+                  'url': url,
+                  'notes': notes,
+              },
+          }
+          fixtures = [x for x in manifest['fixtures'] if x.get('file') != out.name]
+          fixtures.append(item)
+          manifest['fixtures'] = fixtures
+          manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          readme = root / 'README.md'
+          text = readme.read_text(encoding='utf-8')
+          line = '\n`unicode-kdbx4.kdbx` exercises Unicode round-tripping across group, title, username, password, URL and notes.\n'
+          if 'unicode-kdbx4.kdbx' not in text:
+              readme.write_text(text.rstrip() + '\n' + line, encoding='utf-8')
+
+          roadmap = Path('ROADMAP.md')
+          rt = roadmap.read_text(encoding='utf-8')
+          entry_line = '  - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.\n'
+          if entry_line not in rt:
+              anchor = '  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values.\n'
+              if anchor not in rt:
+                  raise SystemExit('ROADMAP fixture anchor not found')
+              rt = rt.replace(anchor, anchor + entry_line, 1)
+              roadmap.write_text(rt, encoding='utf-8')
+          PY
+          python tools/validate_kdbx_fixtures.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from pykeepass import PyKeePass
+          m = json.loads(Path('test-fixtures/kdbx/manifest.json').read_text(encoding='utf-8'))
+          item = next(x for x in m['fixtures'] if x['file'] == 'unicode-kdbx4.kdbx')
+          kp = PyKeePass('test-fixtures/kdbx/unicode-kdbx4.kdbx', password=item['password'])
+          e = kp.find_entries(title=item['expected']['title'], first=True)
+          assert e and e.username == item['expected']['username'] and e.password == item['expected']['password']
+          PY
+          git diff --check
+      - name: Commit validated fixture and remove helper
+        run: |
+          rm .github/workflows/automation-materialize-unicode-kdbx.yml
+          git config user.name 'HyperCriSiS'
+          git config user.email 'dev.github@w3b.world'
+          git add test-fixtures/kdbx ROADMAP.md .github/workflows/automation-materialize-unicode-kdbx.yml
+          git diff --cached --check
+          git commit -m 'test: add Unicode KDBX interoperability fixture'
+          git push origin HEAD:main
