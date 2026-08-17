@@ -2,7 +2,9 @@
 
 ## Phase 0 – Research, security foundations, and compatibility
 
-- [ ] Analyze OneKeePass/mobile as an additional research source: architecture, mobile/Android integration, KDBX handling, UX, security decisions, and solved edge cases. Derive and document lessons learned only; do not copy, port, or reuse source code.
+- [x] Analyze OneKeePass/mobile as an additional research source: architecture, mobile/Android integration, KDBX handling, UX, security decisions, and solved edge cases. Derive and document lessons learned only; do not copy, port, or reuse source code.
+  - Findings: [`docs/research/ONEKEEPASS_MOBILE_LESSONS.md`](docs/research/ONEKEEPASS_MOBILE_LESSONS.md)
+  - Reviewed upstream snapshots: OneKeePass/mobile `ba14115a4f31cd26a68892824262edcbeea8bba3` and OneKeePass/onekeepass-core `7f1b6b2655d7f4c388bb100a2de3e9bbaf2b8fd5`.
 
 ## Phase 2 – Android application and UX
 
