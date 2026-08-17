@@ -8,22 +8,7 @@ Build a security-first Android password manager that remains interoperable with 
 
 **Status: in progress — foundation / Phase 0**
 
-The repository currently contains the project documentation baseline, Android/Kotlin↔Rust architecture decisions, a Rust workspace under `rust/` with an initial `vault-core` boundary, KDBX-engine research, form/autofill fixtures, repository policy checks and a green `Foundation` GitHub Actions workflow. There is not yet a production Android application or complete KDBX vault implementation.
-
-`main` is currently the only development branch. This file is the source of truth for project execution until a branch/PR workflow is introduced.
-
-## Completed foundation
-
-- [x] Establish the project identity and scope as a KeePass/KDBX-compatible Android password manager.
-- [x] Decide on a Kotlin Android application with an isolated Rust vault core.
-- [x] Record the Android platform baseline in ADR 0001.
-- [x] Record the Kotlin/Rust interoperability boundary in ADR 0002.
-- [x] Create the Rust workspace under `rust/` and initial `rust/vault-core` crate.
-- [x] Add policy tooling that constrains the Rust core boundary.
-- [x] Add foundation CI and confirm the current `Foundation` workflow is green.
-- [x] Add contribution and security documentation.
-- [x] Add initial Rust/KDBX engine evaluation research.
-- [x] Add form/autofill fixture schema and representative fixtures.
+The repository currently contains the project foundation, security/architecture documents, compatibility-fixture infrastructure and CI checks. Production Android/vault implementation has not started yet.
 
 ## Phase 0 — security and architecture freeze before production code
 
@@ -31,6 +16,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Write the project threat model covering vault-at-rest, unlocked-memory exposure, clipboard, screenshots/recents, autofill, IPC/JNI/FFI boundaries, backups, storage providers, compromised web content and malicious local apps. See `docs/THREAT_MODEL.md`.
 - [x] Define the Rust vault-core API contract: lifecycle/open/create/save/lock, entry/group CRUD, explicit protected-value retrieval, attachments, opaque handle semantics, FFI error handling and zeroization/lifetime rules. See `docs/VAULT_CORE_API.md`.
 - [ ] Select the initial KDBX implementation strategy after validating candidate Rust libraries against required KDBX3/KDBX4 compatibility, Argon2/AES-KDF, AES/ChaCha20, protected streams, attachments, custom data and round-trip preservation.
+- [ ] Research `OneKeePass/mobile` as an external learning source before freezing the mobile architecture: review its architecture, Android/mobile integration patterns, KDBX handling, UX flows, security-relevant design choices and solved edge cases; document applicable lessons for Fortress. This is analysis-only: do not copy, port or reuse OneKeePass source code.
 - [ ] Create deterministic KDBX compatibility fixtures and round-trip tests before exposing vault operations to Android.
 - [x] Materialize a deterministic truncated-header KDBX4 negative fixture with SHA-256 manifest metadata and an explicit `expected_failure` contract; validate positive and negative fixture schemas separately (`06ed267b`).
 - [x] Materialize a deterministic invalid-signature KDBX4 negative fixture with SHA-256 manifest metadata and an explicit `expected_failure` contract; corrupt the KDBX magic without changing the remainder of the known-good fixture (`21664651`).
@@ -73,122 +59,86 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [ ] Keep classic password autofill, Credential Manager password credentials and future passkey support separable so one integration can fail or be disabled without weakening the others.
 - [ ] Define a manual invocation/selection path for cases where Android, the browser or the target app does not trigger automatic suggestions reliably.
 
-### 3.2 Normalized target and matching engine
+### 3.2 Target identity and matching
 
-- [ ] Define a normalized target model that can represent package name, component/app identity, trusted web origin, scheme, host, port, registrable domain, field metadata, browser/WebView context and source/confidence of every signal.
-- [ ] Define conservative URL/origin/application matching semantics before automatic suggestions.
-- [ ] Distinguish exact origin, exact host, subdomain/parent-domain and registrable-domain matches; never silently collapse them into one equivalence class.
-- [ ] Support multiple URLs/associations per KDBX entry without breaking standard KDBX interoperability; keep any Fortress-specific metadata additive and round-trip-safe.
-- [ ] Support Android package ↔ website/domain associations, distinguishing verified associations from explicit user-approved associations.
-- [ ] Define conflict behavior when package identity and reported web origin disagree.
-- [ ] Define deterministic ranking when several entries/accounts match the same app or domain.
-- [ ] Preserve user choice for ambiguous targets without permanently broadening trust to unrelated origins.
-- [ ] Never offer or disclose credentials automatically when the target origin/app identity cannot be established with sufficient confidence.
-- [ ] Treat missing, malformed, contradictory or spoofable target metadata as a security condition rather than merely a UX inconvenience.
-
-### 3.3 Form and field recognition
-
-- [ ] Support username/password, password-only, username-only, password-change and OTP forms represented by current fixtures.
-- [ ] Support multi-step login flows where username and password appear on separate screens/pages.
-- [ ] Handle password-change forms containing old password, new password and confirmation fields without confusing them with normal sign-in.
-- [ ] Handle multiple username/password candidates and dynamically inserted fields.
-- [ ] Handle fields with correct, missing, incomplete or misleading autofill hints conservatively.
-- [ ] Test standard Android Views, Jetpack Compose semantics and custom-view edge cases where the platform exposes reduced or unusual autofill metadata.
-- [ ] Handle forms that appear only after navigation, JavaScript execution, delayed rendering or app state changes.
-- [ ] Define behavior for embedded/iframe-like login contexts whenever Android/browser APIs expose enough origin information; reject unsafe inference when they do not.
-- [ ] Implement TOTP only after vault secret handling and autofill boundaries are stable.
-
-### 3.4 Browser, WebView and system-view compatibility
-
-- [ ] Handle normal apps, browsers, Android System WebView, app-hosted WebViews and system views as distinct compatibility classes.
-- [ ] Build and maintain an explicit browser compatibility matrix covering at least Chrome/Chromium, Firefox, Waterfox, Brave, Vanadium/GrapheneOS and Vivaldi where installable on supported test devices.
-- [ ] Record for each browser whether trusted origin metadata is available through AutofillService, Credential Manager, both or neither, and which fallback behavior is allowed.
-- [ ] Test Android System WebView separately from full browsers; do not assume identical origin exposure or lifecycle behavior.
-- [ ] Test app-hosted WebViews where the native package and embedded web origin both matter.
-- [ ] Test browsers/WebViews that expose incomplete or no trusted origin and ensure Fortress falls back to explicit selection or refusal instead of guessing from titles/text.
-- [ ] Do not depend on accessibility scraping, window-title URL injection or tools such as “Add URL to Window Title” for the normal Android autofill architecture.
-- [ ] If a compatibility workaround becomes unavoidable, document it as browser/version-specific, security-review it and keep it outside the core trust model.
-
-### 3.5 Credential Manager and passkey edge cases
-
-- [ ] Define Credential Manager behavior when no matching password credential exists; do not surface unrelated generic vault entries as if they were matches.
-- [ ] Define provider behavior when the vault is locked when a Credential Manager request arrives.
-- [ ] Ensure unlock followed by credential selection resumes the original request without leaking plaintext into long-lived Android state.
-- [ ] Handle cancellation, timeout, process recreation and target-app disappearance during Credential Manager flows.
-- [ ] Add passkey/WebAuthn support only after password-credential provider behavior is stable and interoperable.
-- [ ] For passkeys, validate relying-party ID/origin constraints independently from password URL matching and never reuse weaker password-domain heuristics.
-- [ ] Test “no passkey for this relying party”, multiple passkeys, registration, authentication, cancellation and malformed/unsupported requests.
-
-### 3.6 Vault lifecycle and concurrency during autofill
-
-- [ ] Define behavior when the vault is locked before an autofill request, becomes locked while suggestions are visible, or auto-locks during selection/fill.
-- [ ] Invalidate pending credential handles and cached secret material immediately when the vault locks.
-- [ ] Test autofill across app switching, background/foreground transitions, screen off/on, device unlock and long inactivity.
-- [ ] Test Activity/process recreation and service restart without assuming an in-memory request survives.
-- [ ] Handle simultaneous or rapidly repeated autofill requests without cross-target credential leakage or stale suggestions.
-- [ ] Ensure one app/browser request can never reuse secret material resolved for another target after navigation or focus changes.
-
-### 3.7 Security and anti-spoofing rules
-
-- [ ] Add explicit tests for malicious or misleading apps attempting to request credentials associated with another package/domain.
-- [ ] Treat package name alone as insufficient for web-origin claims unless the association is verified or explicitly approved under the documented policy.
-- [ ] Prevent credential suggestions from crossing schemes/origins solely because visible page text, title or field labels resemble a trusted site.
-- [ ] Never use window titles, page titles, accessibility text or arbitrary visible strings as authoritative origin identity.
-- [ ] Ensure logs and diagnostics never contain passwords, OTP secrets, passkey private material or full sensitive form contents.
-- [ ] Make matching confidence/reason diagnosable in a privacy-safe debug mode so compatibility failures can be reproduced without exposing secrets.
-
-### 3.8 Fallback and UX behavior
-
-- [ ] Add manual selection/search fallback when confidence is insufficient; avoid aggressive false-positive filling.
-- [ ] Clearly distinguish exact trusted matches, user-associated matches and manual search results in the selection UI where security meaning differs.
-- [ ] Support multiple accounts for the same target without arbitrary first-match autofill.
-- [ ] Allow explicit one-time selection without automatically creating a permanent app/domain association.
+- [ ] Build a deterministic app/browser target model using package identity, verified web origin/domain where available, normalized URLs and explicit user-approved associations.
+- [ ] Prefer platform-provided web-domain/origin metadata over window titles, accessibility scraping or heuristic text extraction.
+- [ ] Define strict URL normalization and matching rules for scheme, host, port, path, subdomains, IDNs/punycode, IP literals, localhost and custom schemes.
+- [ ] Support multiple URLs/domains per entry and explicit app↔domain associations without silently broadening matches.
 - [ ] Require explicit user action before creating or broadening an app/domain association learned from an ambiguous context.
-- [ ] Provide a safe “no matching credential” state instead of displaying unrelated entries merely to avoid an empty result.
+- [ ] Treat package identity and signing identity as security boundaries where Android exposes enough information; do not trust display labels alone.
+- [ ] Define phishing-resistant mismatch behavior: do not offer credentials merely because page/app text resembles a saved title or domain.
 
-### 3.9 Autofill compatibility and regression test matrix
+### 3.3 Form classification and fill behavior
 
-- [ ] Maintain a versioned compatibility matrix covering Android versions supported by the project, device/OEM differences relevant to autofill, browsers, WebViews and representative native apps.
-- [ ] Add real-device tests for each major browser family and at least one Chromium-derived browser with Google Play Services and one relevant no-GMS/GrapheneOS scenario where practical.
+- [ ] Classify login, registration, password-change, username-only, password-only, OTP and multi-step flows using platform semantics first and conservative heuristics second.
+- [ ] Handle multiple username/password fields, repeated password confirmation fields and forms containing unrelated sensitive inputs.
+- [ ] Support multi-step login flows where username and password are requested on different screens/pages without leaking state across unrelated targets.
+- [ ] Preserve a short-lived, target-bound pending-fill context only when required; invalidate it on package/origin changes, timeout, lock or explicit cancellation.
+- [ ] Add deterministic behavior for WebViews and hybrid apps, including cases where Android cannot provide a trustworthy web origin.
+- [ ] Define safe behavior for embedded/custom tabs and browser-mediated login flows where app identity and web identity differ.
+- [ ] Never infer a trusted credential target from a window title alone; title-based helpers may only be optional user-visible hints, never an authentication boundary.
+
+### 3.4 Save/update workflow
+
+- [ ] Implement save suggestions for new credentials without creating duplicates on repeated callbacks.
+- [ ] Detect changed passwords/usernames and offer explicit update vs create-new choices.
+- [ ] Bind save/update prompts to the same normalized target identity model used for filling.
+- [ ] Do not persist credentials automatically from ambiguous forms or untrusted target identity.
+- [ ] Handle registration→login transitions and password-change flows without overwriting the wrong entry.
+
+### 3.5 OTP/passkeys and advanced credentials
+
+- [ ] Support TOTP storage/display/autofill while keeping seed retrieval explicitly protected.
+- [ ] Define whether OTP should be filled automatically, copied manually or require an explicit user gesture per security policy.
+- [ ] Add passkey support through Credential Manager only after password-credential integration is stable; keep passkey private-key material behind the vault-core security boundary where technically feasible.
+- [ ] Document interoperability limitations for credential types that cannot be represented portably in standard KDBX fields.
+
+### 3.6 Autofill privacy, UX and failure handling
+
+- [ ] Minimize data returned to Android autofill/Credential Manager surfaces until the user selects a credential.
+- [ ] Never expose passwords, OTP seeds or protected custom fields in labels, logs, accessibility descriptions or diagnostic telemetry.
+- [ ] Define unlock-on-demand behavior when an autofill request arrives while the vault is locked; bind post-unlock continuation to the original target and expire it quickly.
+- [ ] Provide clear no-match, ambiguous-match and blocked-for-security states rather than silently filling the closest-looking entry.
+- [ ] Add optional per-entry/per-domain autofill disable controls and an app/domain denylist.
+- [ ] Ensure autofill UI remains usable with large vaults without loading/decrypting every protected field eagerly.
+
+### 3.7 Autofill regression corpus
+
+- [ ] Build synthetic Android/browser autofill fixtures covering normal native apps, Chromium-family browsers, Firefox-family browsers, WebViews, custom tabs and representative hybrid-app flows.
+- [ ] Add fixtures for package/domain disagreement, redirects, subdomain changes, IDN/punycode domains, HTTP↔HTTPS transitions and custom ports.
+- [ ] Add fixtures for multi-step login, multiple credential forms on one page, password-change forms, registration forms and OTP fields.
+- [ ] Add fixtures for malformed or missing Autofill hints and browser structures that expose incomplete origin metadata.
+- [ ] Add fixtures for vault-lock-during-fill, app-switch-during-unlock, stale callbacks, duplicate save callbacks and process recreation.
 - [ ] Add regression fixtures/tests derived from known KeePassDX and KeePass2Android failure classes rather than assuming their historical edge cases cannot affect Fortress.
-- [ ] Cover at minimum: no autofill suggestion, wrong-site suggestion, wrong-field classification, WebView origin loss, browser-origin disagreement, Credential Manager empty-match behavior, provider callback/response failure, passkey RP mismatch, locked-vault request, stale request after navigation and process/lifecycle restart.
-- [ ] Record expected behavior for unsupported platform/browser combinations explicitly so “not supported” cannot be confused with an undetected regression.
-- [ ] Require regression tests for every autofill bug that reaches a release whenever the failure can be reproduced deterministically.
-- [ ] Do not mark Phase 3 complete until both fixture-level tests and representative real-device/browser validation pass.
 
-## Phase 4 — storage, synchronization and resilience
+## Phase 4 — interoperability, hardening and release readiness
 
-- [ ] Add Storage Access Framework support with atomic save/replace semantics.
-- [ ] Define conflict detection and external-change handling before enabling cloud-backed document providers.
-- [ ] Add crash-safe writes, backups/recovery policy and corruption diagnostics.
 - [ ] Test interoperability and round trips with reference KeePass implementations and representative real databases.
+- [ ] Add corruption/failure-injection tests for partial writes, interrupted saves and invalid KDBX structures.
+- [ ] Add backup/atomic-save strategy and verify recovery behavior.
+- [ ] Add Android instrumentation tests for vault lifecycle, autofill target binding and unlock continuation.
+- [ ] Perform dependency/license/security review before first public prerelease.
+- [ ] Perform manual security review of FFI/JNI boundaries and sensitive-memory lifetime.
+- [ ] Verify release artifact provenance, version consistency and reproducible build path.
+- [ ] Publish a prerelease only after the relevant Definition of Done checks pass.
 
-## Phase 5 — hardening and release readiness
+## Definition of Done for the first stable release
 
-- [ ] Complete security review of Rust unsafe/FFI code and Android exported components/permissions.
-- [ ] Add static analysis, dependency auditing, secret scanning and reproducible release checks.
-- [ ] Validate accessibility, autofill behavior and lifecycle locking across supported Android versions.
-- [ ] Document KDBX compatibility limits and any intentionally unsupported features.
-- [ ] Create signed prerelease builds only after the threat-model and vault-core security gates are satisfied.
-
-## Validation and completion criteria
-
-- [ ] Foundation, Rust and Android CI remain green on the active development branch.
-- [ ] KDBX round-trip fixtures pass without silent data loss for supported features.
-- [ ] Security-critical behavior has regression coverage, especially lock/unlock, FFI boundaries, storage writes, Credential Manager flows and autofill origin/application matching.
-- [ ] Autofill/Credential Manager matching never relies on page/window titles or accessibility text as authoritative identity and fails closed when trustworthy target identity is unavailable.
-- [ ] Autofill compatibility is tracked in a versioned matrix and validated on representative native apps, major browser families, Android WebView/system-view flows and relevant lifecycle/lock transitions.
+- [ ] KDBX3 and KDBX4 read/write interoperability is demonstrated against the compatibility matrix.
+- [ ] AES-KDF and Argon2-based databases are covered.
+- [ ] AES and ChaCha20 database encryption are covered where required by the compatibility target.
+- [ ] Attachments, custom fields, protected values, Unicode and representative metadata survive round trips.
+- [ ] Vault lock invalidates handles and sensitive temporary state.
+- [ ] Autofill/Credential Manager never fills across an untrusted package/origin mismatch.
+- [ ] Autofill works across the supported native-app/browser/WebView matrix or has documented platform limitations with safe fallbacks.
 - [ ] Known reproducible KeePassDX/KeePass2Android autofill failure classes have corresponding Fortress regression scenarios where technically applicable.
 - [ ] No non-standard cryptographic extension is enabled by default in a way that breaks KeePass/KDBX compatibility.
+- [ ] CI/build/tests for the supported development environment are green.
+- [ ] Release artifact and tag resolve to the intended commit.
 
-## Blockers / dependencies
+## Current blockers / open decisions
 
-- The Rust KDBX engine must prove compatibility and round-trip safety before Android UI work depends on it.
-- Strong post-quantum claims are blocked on a standards/interoperability design; standard KDBX compatibility remains the primary format constraint.
-- Autofill correctness depends on real Android/browser/WebView/Credential Manager behavior in addition to fixture-level tests; some target apps may not expose enough trustworthy metadata for safe automatic filling.
-- Browser/OEM/platform incompatibilities must degrade to explicit selection or no match rather than unsafe origin guessing; perfect coverage cannot be guaranteed by the password manager alone.
+- Final KDBX engine/library selection is intentionally blocked on executable compatibility evidence rather than README/API claims.
+- Production Android scaffolding is intentionally deferred until the vault-core boundary and KDBX compatibility strategy are sufficiently frozen.
 - Upstream KDBX fixture files, including KeePassXC `Format300.kdbx`, are not project dependencies or blockers. KDBX3/AES-KDF coverage is provided through project-generated synthetic fixtures; upstream fixtures may be consulted externally as references but are not redistributed.
-
-## Completion status
-
-**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining project-generated synthetic KDBX fixtures, including KDBX3/AES-KDF coverage, and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
