@@ -25,3 +25,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# KDBX fixture integrity
+import runpy
+runpy.run_path(str(ROOT / 'tools' / 'validate_kdbx_fixtures.py'), run_name='__main__')

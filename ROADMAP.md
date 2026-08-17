@@ -32,6 +32,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Define the Rust vault-core API contract: lifecycle/open/create/save/lock, entry/group CRUD, explicit protected-value retrieval, attachments, opaque handle semantics, FFI error handling and zeroization/lifetime rules. See `docs/VAULT_CORE_API.md`.
 - [ ] Select the initial KDBX implementation strategy after validating candidate Rust libraries against required KDBX3/KDBX4 compatibility, Argon2/AES-KDF, AES/ChaCha20, protected streams, attachments, custom data and round-trip preservation.
 - [ ] Create deterministic KDBX compatibility fixtures and round-trip tests before exposing vault operations to Android.
+- [x] Materialize the first synthetic KDBX4 password-only interoperability fixture with manifest/SHA-256 validation; expand the corpus across the remaining compatibility matrix.
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
   - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.

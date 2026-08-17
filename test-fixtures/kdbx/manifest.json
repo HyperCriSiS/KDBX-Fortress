@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "fixtures": [
+    {
+      "file": "basic-kdbx4.kdbx",
+      "sha256": "3f9c8fffbe9f69b5e2ec3c33a7b246e90ecb6861b653c173489c0eee49bf472e",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "purpose": "minimal password-only interoperability smoke fixture",
+      "expected": {
+        "group": "Synthetic",
+        "title": "Example Login",
+        "username": "fixture-user",
+        "password": "fixture-secret",
+        "url": "https://example.test"
+      }
+    }
+  ]
+}
