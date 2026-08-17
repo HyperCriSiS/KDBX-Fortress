@@ -10,3 +10,4 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+keepass = { version = "=0.13.18", default-features = false }
