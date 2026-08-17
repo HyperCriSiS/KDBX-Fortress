@@ -29,9 +29,6 @@ The repository currently contains the project foundation, security/architecture 
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
-- [x] Document the crypto-agility policy. Standard KDBX remains the interoperable default. A future, separately isolated Fortress `MultiCipher` module may intentionally introduce a Fortress-specific multi-cipher envelope/profile and must never silently replace ordinary KDBX. See `docs/CRYPTO_AGILITY.md`.
-- [ ] Design and document the Fortress MultiCipher format before implementation. Define the exact cascade/construction, independently derived cipher keys, KDF/key-splitting rules, per-layer nonce/IV requirements, authentication/integrity ordering, authenticated metadata, versioning/algorithm identifiers, downgrade resistance, failure behavior and recovery/export semantics.
-- [ ] Define the future desktop compatibility project boundary: the Android project owns the canonical Fortress MultiCipher format/specification and reference fixtures; a separate desktop project may later implement the same format as a KeePass/KDBX-oriented extension without making desktop compatibility a prerequisite for the Android implementation.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
 ## Phase 1 — minimal vault core
@@ -43,12 +40,6 @@ The repository currently contains the project foundation, security/architecture 
 - [ ] Implement create/save/round-trip support only after read compatibility is proven.
 - [ ] Add fuzz/property tests for KDBX parsing boundaries and malformed input.
 - [ ] Add dependency/license/security checks for Rust and Android dependencies.
-- [ ] Add an optional, separately isolated Fortress `MultiCipher` module only after its construction and on-disk format have been specified, reviewed and covered by deterministic test vectors. The module may combine multiple established cryptographic primitives, but must not introduce novel primitives of our own.
-- [ ] Keep Fortress MultiCipher disabled by default and make the interoperability impact explicit before database creation/conversion: databases using the Fortress MultiCipher profile are not expected to be readable by ordinary KeePass, KeePassXC, KeePassDX or other KDBX clients unless they later gain explicit support for this format.
-- [ ] Derive independent keys for each cipher layer from the KDBX-derived secret/key material using an explicit domain-separated construction; never reuse one raw encryption key across multiple algorithms merely for convenience.
-- [ ] Define independent nonce/IV generation and uniqueness rules for every layer and authenticate all format/version/algorithm metadata needed to prevent substitution or downgrade attacks.
-- [ ] Provide an explicit, tested migration/export path from Fortress MultiCipher-protected databases back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
-- [ ] Publish deterministic Fortress MultiCipher specification fixtures/test vectors so a future dedicated desktop project can implement byte-for-byte compatible read/write support.
 
 ## Phase 2 — Android application shell
 
@@ -131,10 +122,25 @@ The repository currently contains the project foundation, security/architecture 
 ## Phase 4 — interoperability, hardening and release readiness
 
 - [ ] Test interoperability and round trips with reference KeePass implementations and representative real databases.
-- [ ] Add dedicated Fortress MultiCipher read/write/reopen, tamper, downgrade and cross-implementation test vectors for every supported cipher configuration before enabling MultiCipher writes; when the future desktop project exists, add bidirectional interoperability tests against it.
 - [ ] Add corruption/failure-injection tests for partial writes, interrupted saves and invalid KDBX structures.
 - [ ] Add backup/atomic-save strategy and verify recovery behavior.
 - [ ] Add Android instrumentation tests for vault lifecycle, autofill target binding and unlock continuation.
 - [ ] Perform dependency/license/security review before first public prerelease.
 - [ ] Perform manual security review of FFI/JNI boundaries and sensitive-memory lifetime.
 - [ ] Verify release artifact provenance, version consistency and reproducibility before stable release.
+
+## Phase 5 — post-MVP / optional Fortress MultiCipher extension (no current priority)
+
+This phase is deliberately parked at the end of the roadmap. It is **not required for MVP, first public prerelease, stable release, ordinary KDBX compatibility or the core Android password-manager experience**. Do not pull MultiCipher work forward while higher-priority standard-KDBX, vault, Android, autofill, interoperability or hardening work remains.
+
+- [x] Record the crypto-agility direction: standard KDBX remains the interoperable default; Fortress MultiCipher, if implemented later, is a separate opt-in Fortress-specific extension. See `docs/CRYPTO_AGILITY.md`.
+- [ ] Design and document the Fortress MultiCipher format before implementation. Define the exact cascade/construction, independently derived cipher keys, KDF/key-splitting rules, per-layer nonce/IV requirements, authentication/integrity ordering, authenticated metadata, versioning/algorithm identifiers, downgrade resistance, failure behavior and recovery/export semantics.
+- [ ] Implement a separately isolated Fortress `MultiCipher` module only after its construction and on-disk format have been specified, reviewed and covered by deterministic test vectors. Combine established cryptographic primitives only; do not invent a new cipher primitive.
+- [ ] Keep Fortress MultiCipher disabled by default and show an explicit interoperability warning before database creation/conversion: ordinary KeePass, KeePassXC, KeePassDX and other KDBX clients are not expected to open Fortress MultiCipher vaults unless they later add explicit support.
+- [ ] Derive independent, domain-separated keys for every cipher layer; never reuse one raw encryption key across multiple algorithms.
+- [ ] Define independent nonce/IV generation and uniqueness rules for every layer and authenticate all format/version/algorithm metadata required to prevent substitution or downgrade attacks.
+- [ ] Add deterministic read/write/reopen, tamper, parameter-substitution, downgrade and malformed-input test vectors for every supported configuration before enabling MultiCipher writes.
+- [ ] Provide an explicit, tested migration/export path from Fortress MultiCipher back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
+- [ ] Publish the canonical Fortress MultiCipher specification and deterministic fixtures/test vectors in an implementation-independent form so other clients can implement byte-for-byte compatible support.
+- [ ] Define and later create a **separate dedicated desktop project** implementing the same Fortress MultiCipher specification for desktop KeePass/KDBX workflows. Desktop support is downstream work and must not block the Android project.
+- [ ] Once the desktop implementation exists, add bidirectional cross-implementation interoperability tests between KDBX Fortress and the desktop implementation.
