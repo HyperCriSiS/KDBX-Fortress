@@ -190,6 +190,8 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 - [x] Record authoritative KeePassXC `Format300.kdbx` provenance anchor and upstream expected semantics (upstream commit `18d3fe55f883d000b499804e22590f0c86399a63`, Git blob `dc67f35a11ec8caf49583798280aa883657436e2`); fixture-specific license, cryptographic SHA-256 and independent-reader validation remain open.
 
+- [x] Audit upstream KeePassXC `tests`/`tests/data` for fixture-scoped licensing metadata for `Format300.kdbx`; no local `LICENSE`, `COPYING`, or `README` assignment exists, while the repository root carries multiple license families, so fixture redistribution remains unresolved and import stays blocked.
+
 ## Completion status
 
 **Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining synthetic KDBX fixtures and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
