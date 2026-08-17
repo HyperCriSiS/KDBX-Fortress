@@ -37,7 +37,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Verify that committed truncated-header and invalid-signature KDBX4 negative fixtures remain deterministic byte-level derivations of the known-good synthetic fixture; run this invariant in Foundation CI (`1caa192d`).
 - [x] Materialize the first synthetic KDBX4 password-only interoperability fixture with manifest/SHA-256 validation; expand the corpus across the remaining compatibility matrix.
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
-  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values.
+  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values, including required KDBX3/AES-KDF coverage. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
@@ -187,13 +187,8 @@ The repository currently contains the project documentation baseline, Android/Ko
 - Strong post-quantum claims are blocked on a standards/interoperability design; standard KDBX compatibility remains the primary format constraint.
 - Autofill correctness depends on real Android/browser/WebView/Credential Manager behavior in addition to fixture-level tests; some target apps may not expose enough trustworthy metadata for safe automatic filling.
 - Browser/OEM/platform incompatibilities must degrade to explicit selection or no match rather than unsafe origin guessing; perfect coverage cannot be guaranteed by the password manager alone.
-
-- [x] Record authoritative KeePassXC `Format300.kdbx` provenance anchor and upstream expected semantics (upstream commit `18d3fe55f883d000b499804e22590f0c86399a63`, Git blob `dc67f35a11ec8caf49583798280aa883657436e2`); fixture-specific license, cryptographic SHA-256 and independent-reader validation remain open.
-
-- [x] Audit upstream KeePassXC `tests`/`tests/data` for fixture-scoped licensing metadata for `Format300.kdbx`; no local `LICENSE`, `COPYING`, or `README` assignment exists, while the repository root carries multiple license families, so fixture redistribution remains unresolved and import stays blocked.
-
-- [x] Trace `Format300.kdbx` licensing history through upstream KeePassX/KeePassXC commits: project-level/default `GPL-2 or GPL-3` context predates the fixture and the introducing commit carries explicit GPL-2/3 test/reader code, but no unambiguous fixture-specific assignment was found; redistribution therefore remains conservatively blocked.
+- Upstream KDBX fixture files, including KeePassXC `Format300.kdbx`, are not project dependencies or blockers. KDBX3/AES-KDF coverage is provided through project-generated synthetic fixtures; upstream fixtures may be consulted externally as references but are not redistributed.
 
 ## Completion status
 
-**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining synthetic KDBX fixtures and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
+**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining project-generated synthetic KDBX fixtures, including KDBX3/AES-KDF coverage, and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
