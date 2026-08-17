@@ -188,7 +188,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - Autofill correctness depends on real Android/browser/WebView/Credential Manager behavior in addition to fixture-level tests; some target apps may not expose enough trustworthy metadata for safe automatic filling.
 - Browser/OEM/platform incompatibilities must degrade to explicit selection or no match rather than unsafe origin guessing; perfect coverage cannot be guaranteed by the password manager alone.
 
-- [x] Record authoritative KeePassXC `Format300.kdbx` provenance anchor and upstream expected semantics (upstream commit `18d3fe55f883d000b499804e22590f0c86399a63`, Git blob `2a71e8c3c2cc9bb1e68f86badda6b36fb4ffa107`); fixture-specific license, cryptographic SHA-256 and independent-reader validation remain open.
+- [x] Record authoritative KeePassXC `Format300.kdbx` provenance anchor and upstream expected semantics (upstream commit `18d3fe55f883d000b499804e22590f0c86399a63`, Git blob `dc67f35a11ec8caf49583798280aa883657436e2`); fixture-specific license, cryptographic SHA-256 and independent-reader validation remain open.
 
 ## Completion status
 
