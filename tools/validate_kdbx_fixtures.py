@@ -14,5 +14,9 @@ for entry in entries:
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     assert actual == entry['sha256'], f'SHA-256 mismatch for {path.name}'
     assert entry.get('format') in {'KDBX3', 'KDBX4'}, f'unsupported format label for {path.name}'
-    assert isinstance(entry.get('expected'), dict) and entry['expected'], f'missing expected content for {path.name}'
+    if 'expected_failure' in entry:
+        assert isinstance(entry['expected_failure'], str) and entry['expected_failure'], f'missing expected failure category for {path.name}'
+        assert 'expected' not in entry, f'negative fixture must not declare positive expected content for {path.name}'
+    else:
+        assert isinstance(entry.get('expected'), dict) and entry['expected'], f'missing expected content for {path.name}'
 print(f'validated {len(entries)} KDBX fixture(s)')

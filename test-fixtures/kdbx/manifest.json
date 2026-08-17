@@ -29,6 +29,13 @@
         "url": "https://例え.test/über",
         "notes": "Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀"
       }
+    },
+    {
+      "file": "truncated-header-kdbx4.kdbx",
+      "sha256": "06244a1e48bead1fc908998b806048cd98a0f2980cf42597fd9a8abe5091359b",
+      "format": "KDBX4",
+      "purpose": "deterministic truncated-header rejection fixture",
+      "expected_failure": "truncated_header"
     }
   ]
 }
