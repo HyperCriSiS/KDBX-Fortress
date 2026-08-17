@@ -29,7 +29,8 @@ The repository currently contains the project foundation, security/architecture 
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
-- [x] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format. See `docs/CRYPTO_AGILITY.md`.
+- [x] Document the crypto-agility policy. Non-standard cryptography must never silently replace interoperable KDBX. The only planned multi-cipher extension is a separate optional module targeting compatibility with the established KeePass Desktop `MultiCipher` plugin behavior; no Fortress-proprietary multi-cipher database format is planned. See `docs/CRYPTO_AGILITY.md`.
+- [ ] Research and document the KeePass Desktop `MultiCipher` plugin format and exact compatibility contract before implementing the optional Fortress MultiCipher module. Confirm algorithm identifiers, key derivation/second-key handling, stream layout, KDBX header/plugin metadata, version compatibility and independent read/write interoperability with KeePass Desktop + MultiCipher.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
 ## Phase 1 — minimal vault core
@@ -41,6 +42,9 @@ The repository currently contains the project foundation, security/architecture 
 - [ ] Implement create/save/round-trip support only after read compatibility is proven.
 - [ ] Add fuzz/property tests for KDBX parsing boundaries and malformed input.
 - [ ] Add dependency/license/security checks for Rust and Android dependencies.
+- [ ] Add an optional, separately isolated `MultiCipher` compatibility module only after the KeePass Desktop plugin format has been fully documented and tested. The module must support only configurations that KeePass Desktop + the established MultiCipher plugin can read/write; do not add Fortress-only cipher combinations under this compatibility mode.
+- [ ] Keep MultiCipher support disabled by default and make the interoperability impact explicit before database creation/conversion: standard KeePass, KeePassXC, KeePassDX and other ordinary KDBX clients may not open such a database without the corresponding KeePass Desktop plugin support.
+- [ ] Provide an explicit, tested migration/export path from MultiCipher-protected databases back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
 
 ## Phase 2 — Android application shell
 
@@ -123,6 +127,7 @@ The repository currently contains the project foundation, security/architecture 
 ## Phase 4 — interoperability, hardening and release readiness
 
 - [ ] Test interoperability and round trips with reference KeePass implementations and representative real databases.
+- [ ] Add dedicated MultiCipher interoperability tests against KeePass Desktop + the established MultiCipher plugin for every supported cipher pairing/key mode before enabling MultiCipher writes.
 - [ ] Add corruption/failure-injection tests for partial writes, interrupted saves and invalid KDBX structures.
 - [ ] Add backup/atomic-save strategy and verify recovery behavior.
 - [ ] Add Android instrumentation tests for vault lifecycle, autofill target binding and unlock continuation.
