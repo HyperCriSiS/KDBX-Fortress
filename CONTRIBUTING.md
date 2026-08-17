@@ -1,6 +1,6 @@
-# Contributing to KDBX Bastion
+# Contributing to KDBX Fortress
 
-KDBX Bastion welcomes contributions, but password-manager code has a high security and data-integrity impact. Changes are therefore expected to be small, reviewable, test-backed, and consistent with the documented trust boundaries.
+KDBX Fortress welcomes contributions, but password-manager code has a high security and data-integrity impact. Changes are therefore expected to be small, reviewable, test-backed, and consistent with the documented trust boundaries.
 
 ## Before changing code
 

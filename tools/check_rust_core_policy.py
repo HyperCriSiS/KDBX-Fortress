@@ -80,8 +80,8 @@ def check(root: Path) -> None:
     toolchain = load_toml(toolchain_path)
 
     package_defaults = workspace_data.get("workspace", {}).get("package", {})
-    if package_defaults.get("license") != "AGPL-3.0-or-later":
-        raise PolicyError("workspace license must be AGPL-3.0-or-later")
+    if package_defaults.get("license") != "AGPL-3.0-only":
+        raise PolicyError("workspace license must be AGPL-3.0-only")
     if package_defaults.get("publish") is not False:
         raise PolicyError("workspace crates must default to publish = false")
     if package_defaults.get("rust-version") != "1.97.1":

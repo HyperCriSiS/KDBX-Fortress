@@ -1,5 +1,5 @@
 [package]
-name = "kdbx-bastion-vault-core"
+name = "kdbx-fortress-vault-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

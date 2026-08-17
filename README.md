@@ -15,8 +15,10 @@ The project is a Greenfield implementation focused on reliable Android Autofill,
 
 Early foundation development. No stable release is available yet.
 
-See [Roadmap.md](Roadmap.md) for the current implementation plan.
+See [ROADMAP.md](ROADMAP.md) for the current implementation plan.
 
-## License
+## License and project identity
 
-GNU Affero General Public License v3.0 or later. See [LICENSE](LICENSE).
+The source code is licensed under the **GNU Affero General Public License v3.0 only** (`AGPL-3.0-only`). See [LICENSE](LICENSE).
+
+The source-code license does not grant permission to use the **KDBX Fortress** name, official logo, or project branding in a way that implies an official release or endorsement. See [TRADEMARKS.md](TRADEMARKS.md). The term **KDBX** itself is used descriptively for the KeePass database format; this project does not claim exclusive rights to `KDBX` alone.

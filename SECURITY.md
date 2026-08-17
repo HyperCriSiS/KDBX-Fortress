@@ -1,10 +1,10 @@
 # Security Policy
 
-KDBX Bastion is security-sensitive software. Please do not publish an exploitable vulnerability, proof-of-concept containing real secrets, or credential database data in a public issue before a coordinated disclosure path is available.
+KDBX Fortress is security-sensitive software. Please do not publish an exploitable vulnerability, proof-of-concept containing real secrets, or credential database data in a public issue before a coordinated disclosure path is available.
 
 ## Current project status
 
-KDBX Bastion is in early architecture/foundation development and has no stable release yet.
+KDBX Fortress is in early architecture/foundation development and has no stable release yet.
 
 ## Reporting a vulnerability
 

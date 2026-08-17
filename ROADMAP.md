@@ -1,4 +1,4 @@
-# KDBX Bastion Roadmap
+# KDBX Fortress Roadmap
 
 ## Project goal
 
@@ -27,7 +27,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 ## Phase 0 — security and architecture freeze before production code
 
-- [ ] Commit the final repository license before production implementation begins. Current recommendation: `AGPL-3.0-or-later`, subject to final compatibility review of dependencies and any code reused from upstream/reference projects.
+- [x] Commit the final repository license as `AGPL-3.0-only`, add `NOTICE` and `TRADEMARKS.md`, and keep project identity/branding rules separate from the source-code license. Dependency and reused-code license compatibility remains a mandatory review gate.
 - [x] Write the project threat model covering vault-at-rest, unlocked-memory exposure, clipboard, screenshots/recents, autofill, IPC/JNI/FFI boundaries, backups, storage providers, compromised web content and malicious local apps. See `docs/THREAT_MODEL.md`.
 - [x] Define the Rust vault-core API contract: lifecycle/open/create/save/lock, entry/group CRUD, explicit protected-value retrieval, attachments, opaque handle semantics, FFI error handling and zeroization/lifetime rules. See `docs/VAULT_CORE_API.md`.
 - [ ] Select the initial KDBX implementation strategy after validating candidate Rust libraries against required KDBX3/KDBX4 compatibility, Argon2/AES-KDF, AES/ChaCha20, protected streams, attachments, custom data and round-trip preservation.
@@ -78,7 +78,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [ ] Define a normalized target model that can represent package name, component/app identity, trusted web origin, scheme, host, port, registrable domain, field metadata, browser/WebView context and source/confidence of every signal.
 - [ ] Define conservative URL/origin/application matching semantics before automatic suggestions.
 - [ ] Distinguish exact origin, exact host, subdomain/parent-domain and registrable-domain matches; never silently collapse them into one equivalence class.
-- [ ] Support multiple URLs/associations per KDBX entry without breaking standard KDBX interoperability; keep any Bastion-specific metadata additive and round-trip-safe.
+- [ ] Support multiple URLs/associations per KDBX entry without breaking standard KDBX interoperability; keep any Fortress-specific metadata additive and round-trip-safe.
 - [ ] Support Android package ↔ website/domain associations, distinguishing verified associations from explicit user-approved associations.
 - [ ] Define conflict behavior when package identity and reported web origin disagree.
 - [ ] Define deterministic ranking when several entries/accounts match the same app or domain.
@@ -105,7 +105,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [ ] Record for each browser whether trusted origin metadata is available through AutofillService, Credential Manager, both or neither, and which fallback behavior is allowed.
 - [ ] Test Android System WebView separately from full browsers; do not assume identical origin exposure or lifecycle behavior.
 - [ ] Test app-hosted WebViews where the native package and embedded web origin both matter.
-- [ ] Test browsers/WebViews that expose incomplete or no trusted origin and ensure Bastion falls back to explicit selection or refusal instead of guessing from titles/text.
+- [ ] Test browsers/WebViews that expose incomplete or no trusted origin and ensure Fortress falls back to explicit selection or refusal instead of guessing from titles/text.
 - [ ] Do not depend on accessibility scraping, window-title URL injection or tools such as “Add URL to Window Title” for the normal Android autofill architecture.
 - [ ] If a compatibility workaround becomes unavoidable, document it as browser/version-specific, security-review it and keep it outside the core trust model.
 
@@ -150,7 +150,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 - [ ] Maintain a versioned compatibility matrix covering Android versions supported by the project, device/OEM differences relevant to autofill, browsers, WebViews and representative native apps.
 - [ ] Add real-device tests for each major browser family and at least one Chromium-derived browser with Google Play Services and one relevant no-GMS/GrapheneOS scenario where practical.
-- [ ] Add regression fixtures/tests derived from known KeePassDX and KeePass2Android failure classes rather than assuming their historical edge cases cannot affect Bastion.
+- [ ] Add regression fixtures/tests derived from known KeePassDX and KeePass2Android failure classes rather than assuming their historical edge cases cannot affect Fortress.
 - [ ] Cover at minimum: no autofill suggestion, wrong-site suggestion, wrong-field classification, WebView origin loss, browser-origin disagreement, Credential Manager empty-match behavior, provider callback/response failure, passkey RP mismatch, locked-vault request, stale request after navigation and process/lifecycle restart.
 - [ ] Record expected behavior for unsupported platform/browser combinations explicitly so “not supported” cannot be confused with an undetected regression.
 - [ ] Require regression tests for every autofill bug that reaches a release whenever the failure can be reproduced deterministically.
@@ -178,12 +178,11 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [ ] Security-critical behavior has regression coverage, especially lock/unlock, FFI boundaries, storage writes, Credential Manager flows and autofill origin/application matching.
 - [ ] Autofill/Credential Manager matching never relies on page/window titles or accessibility text as authoritative identity and fails closed when trustworthy target identity is unavailable.
 - [ ] Autofill compatibility is tracked in a versioned matrix and validated on representative native apps, major browser families, Android WebView/system-view flows and relevant lifecycle/lock transitions.
-- [ ] Known reproducible KeePassDX/KeePass2Android autofill failure classes have corresponding Bastion regression scenarios where technically applicable.
+- [ ] Known reproducible KeePassDX/KeePass2Android autofill failure classes have corresponding Fortress regression scenarios where technically applicable.
 - [ ] No non-standard cryptographic extension is enabled by default in a way that breaks KeePass/KDBX compatibility.
 
 ## Blockers / dependencies
 
-- Final license selection must precede substantial production code so dependency/reuse choices remain legally compatible.
 - The Rust KDBX engine must prove compatibility and round-trip safety before Android UI work depends on it.
 - Strong post-quantum claims are blocked on a standards/interoperability design; standard KDBX compatibility remains the primary format constraint.
 - Autofill correctness depends on real Android/browser/WebView/Credential Manager behavior in addition to fixture-level tests; some target apps may not expose enough trustworthy metadata for safe automatic filling.
@@ -191,4 +190,4 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 ## Completion status
 
-**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, and the deterministic KDBX compatibility/negative-corpus matrix is now defined. The immediate priority is to resolve the license gate, materialize the synthetic KDBX fixtures, and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
+**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining synthetic KDBX fixtures and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
