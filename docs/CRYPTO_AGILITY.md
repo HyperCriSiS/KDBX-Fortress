@@ -1,37 +1,65 @@
 # Crypto-agility policy
 
-KDBX Fortress treats standard KDBX interoperability as a hard compatibility boundary. Cryptographic agility may add stronger implementation choices, but it must not silently create a database format that standard KeePass/KDBX implementations cannot read.
+KDBX Fortress treats standard KDBX interoperability as the default compatibility boundary. Ordinary vaults must remain readable by normal KeePass/KDBX implementations.
+
+KDBX Fortress may later offer a separate opt-in `MultiCipher` profile that intentionally goes beyond standard KDBX interoperability. This is a Fortress-defined extension and must never be enabled silently.
 
 ## Baseline rules
 
 - Standard KDBX encryption, KDF and integrity primitives remain the default storage format.
 - The core must select algorithms from explicit, versioned identifiers and must reject unknown or malformed parameters rather than guessing.
 - Algorithm implementations remain behind narrow vault-core interfaces so a primitive can be replaced without changing Android/UI code or exposing key material across the FFI boundary.
-- Write support must preserve all supported KDBX parameters on round-trip unless the user explicitly requests a compatible migration.
-- Deprecated or weak-but-valid legacy choices may be readable for interoperability, while creation of new vaults can use stronger standard KDBX defaults.
+- Write support must preserve all supported standard-KDBX parameters on round-trip unless the user explicitly requests a migration.
+- Deprecated or weak-but-valid legacy choices may be readable for interoperability, while creation of new standard vaults can use stronger standard KDBX defaults.
 
-## MultiCipher compatibility module
+## Fortress MultiCipher module
 
-KDBX Fortress may provide an optional, separately isolated `MultiCipher` module for compatibility with the established KeePass Desktop MultiCipher plugin. This is a compatibility feature, not a Fortress-specific cryptographic format.
+KDBX Fortress may provide an optional, separately isolated `MultiCipher` module that combines multiple established cryptographic primitives in one Fortress-specific protection profile.
 
-The current official KeePass plugin catalog describes MultiCipher as using two ciphers for one database and lists AES-256, 3DES-192, ChaCha20 and Salsa20 as supported ciphers. The plugin's own documentation describes two independent keys and a dual-stream construction. Fortress must not infer compatibility from those summaries alone: the exact on-disk format and key-handling behavior must be verified against the plugin source and independent KeePass Desktop read/write tests before implementation is enabled.
+This module is not required to be readable by ordinary KeePass, KeePassXC, KeePassDX or other standard KDBX clients. The UI must state this clearly before creating or converting a vault.
 
-Rules for the Fortress MultiCipher module:
+The intent is to combine existing, well-studied primitives rather than invent new ciphers. However, the composition itself is a cryptographic protocol and must be treated as security-sensitive design work rather than as a trivial wrapper.
 
-- Support only combinations and key modes that are proven interoperable with KeePass Desktop + the established MultiCipher plugin.
-- Do not add Fortress-only algorithms, cipher pairings, headers or envelopes under the MultiCipher compatibility label.
-- Keep ordinary single-cipher standard KDBX as the default.
-- Treat MultiCipher as an explicit opt-in compatibility profile with a strong warning that ordinary KeePass/KDBX clients may not be able to open the resulting database without corresponding plugin support.
-- Keep MultiCipher parsing/writing isolated from the standard KDBX path so optional compatibility code cannot silently alter normal vault semantics.
-- Before enabling writes, maintain deterministic fixtures for every supported pairing/key mode and verify read, write, reopen and round-trip behavior against KeePass Desktop + MultiCipher.
-- Provide an explicit export/migration operation back to ordinary standard-KDBX encryption. The source vault must remain untouched until the standard-KDBX export reopens successfully and passes integrity verification.
-- Unknown MultiCipher versions, algorithms, identifiers or metadata must fail closed rather than being approximated or downgraded.
+### Construction requirements
+
+Before implementation is enabled, the Fortress MultiCipher format must specify and test at least:
+
+- the exact cipher cascade/construction and processing order;
+- supported algorithms and algorithm identifiers;
+- versioning and forward/backward compatibility rules;
+- domain-separated derivation of independent keys for each cipher layer;
+- KDF/key-splitting behavior and how it relates to the ordinary KDBX master-key derivation path;
+- independent nonce/IV generation, storage and uniqueness requirements for each layer;
+- authenticated metadata covering format version, algorithm selection/order and all parameters relevant to decryption;
+- integrity/authentication ordering and failure semantics;
+- resistance to algorithm-substitution and downgrade attacks;
+- bounded resource requirements for malformed/untrusted inputs;
+- atomic migration/export behavior and corruption recovery.
+
+A single raw encryption key must not simply be reused across several algorithms. Where one master secret feeds multiple cryptographic roles, each role/layer must receive independently derived, context-bound key material.
+
+### Compatibility model
+
+- Ordinary single-cipher standard KDBX remains the default.
+- Fortress MultiCipher is an explicit opt-in profile.
+- Vault creation/conversion must warn that normal KDBX clients will not be able to open the resulting database unless they implement the Fortress MultiCipher specification.
+- The source standard-KDBX vault must not be destroyed or overwritten until a converted MultiCipher vault has reopened and passed integrity verification.
+- Export back to ordinary standard KDBX must be supported and tested.
+- Unknown Fortress MultiCipher versions, algorithms, identifiers or metadata must fail closed rather than being approximated or downgraded.
+
+### Desktop implementation
+
+The canonical format/specification and deterministic test vectors live with KDBX Fortress.
+
+A separate dedicated desktop project may later implement the same Fortress MultiCipher format for desktop KeePass/KDBX workflows. That desktop implementation is a downstream compatibility target, not a prerequisite for defining or implementing the Android module.
+
+The format must therefore be specified independently of Android/Kotlin/Rust implementation details so another implementation can reproduce it byte-for-byte from the public specification and test vectors.
 
 ## Other non-standard cryptography
 
-No Fortress-proprietary multi-cipher database format is planned. If a future cryptographic extension outside standard KDBX or established KeePass plugin interoperability is ever considered, it requires a separate architecture/security decision, threat model and migration design before it can enter the roadmap.
+No novel cryptographic primitive should be invented for Fortress MultiCipher. The project may compose established primitives, but any new construction requires explicit architecture/security review, threat-model updates and deterministic test vectors.
 
-No algorithm may be described as post-quantum secure merely because it is new or non-standard. Such claims require a standardized primitive, a documented security model and an implementation/review path appropriate for secret-storage software.
+No algorithm or composition may be described as post-quantum secure merely because multiple ciphers are combined. Such claims require an appropriate security model and primitives whose relevant security properties support that claim.
 
 ## Migration and downgrade behavior
 
@@ -43,6 +71,8 @@ No algorithm may be described as post-quantum secure merely because it is new or
 
 ## Testing gates
 
-Before a new cryptographic configuration is enabled for writes, the project must have deterministic fixtures for read, write, reopen and independent interoperability where an external implementation exists. Negative tests must cover malformed headers/parameters, authentication failure, excessive resource requests and unsupported algorithm identifiers.
+Before a Fortress MultiCipher configuration is enabled for writes, the project must have deterministic fixtures/test vectors for read, write, reopen, tamper detection, parameter substitution, downgrade attempts and malformed inputs.
+
+When the future desktop implementation exists, bidirectional cross-implementation interoperability becomes an additional release gate.
 
 Security-sensitive algorithm or format changes require explicit review and cannot be justified solely by benchmark improvements.

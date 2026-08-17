@@ -29,8 +29,9 @@ The repository currently contains the project foundation, security/architecture 
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
-- [x] Document the crypto-agility policy. Non-standard cryptography must never silently replace interoperable KDBX. The only planned multi-cipher extension is a separate optional module targeting compatibility with the established KeePass Desktop `MultiCipher` plugin behavior; no Fortress-proprietary multi-cipher database format is planned. See `docs/CRYPTO_AGILITY.md`.
-- [ ] Research and document the KeePass Desktop `MultiCipher` plugin format and exact compatibility contract before implementing the optional Fortress MultiCipher module. Confirm algorithm identifiers, key derivation/second-key handling, stream layout, KDBX header/plugin metadata, version compatibility and independent read/write interoperability with KeePass Desktop + MultiCipher.
+- [x] Document the crypto-agility policy. Standard KDBX remains the interoperable default. A future, separately isolated Fortress `MultiCipher` module may intentionally introduce a Fortress-specific multi-cipher envelope/profile and must never silently replace ordinary KDBX. See `docs/CRYPTO_AGILITY.md`.
+- [ ] Design and document the Fortress MultiCipher format before implementation. Define the exact cascade/construction, independently derived cipher keys, KDF/key-splitting rules, per-layer nonce/IV requirements, authentication/integrity ordering, authenticated metadata, versioning/algorithm identifiers, downgrade resistance, failure behavior and recovery/export semantics.
+- [ ] Define the future desktop compatibility project boundary: the Android project owns the canonical Fortress MultiCipher format/specification and reference fixtures; a separate desktop project may later implement the same format as a KeePass/KDBX-oriented extension without making desktop compatibility a prerequisite for the Android implementation.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
 ## Phase 1 — minimal vault core
@@ -42,9 +43,12 @@ The repository currently contains the project foundation, security/architecture 
 - [ ] Implement create/save/round-trip support only after read compatibility is proven.
 - [ ] Add fuzz/property tests for KDBX parsing boundaries and malformed input.
 - [ ] Add dependency/license/security checks for Rust and Android dependencies.
-- [ ] Add an optional, separately isolated `MultiCipher` compatibility module only after the KeePass Desktop plugin format has been fully documented and tested. The module must support only configurations that KeePass Desktop + the established MultiCipher plugin can read/write; do not add Fortress-only cipher combinations under this compatibility mode.
-- [ ] Keep MultiCipher support disabled by default and make the interoperability impact explicit before database creation/conversion: standard KeePass, KeePassXC, KeePassDX and other ordinary KDBX clients may not open such a database without the corresponding KeePass Desktop plugin support.
-- [ ] Provide an explicit, tested migration/export path from MultiCipher-protected databases back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
+- [ ] Add an optional, separately isolated Fortress `MultiCipher` module only after its construction and on-disk format have been specified, reviewed and covered by deterministic test vectors. The module may combine multiple established cryptographic primitives, but must not introduce novel primitives of our own.
+- [ ] Keep Fortress MultiCipher disabled by default and make the interoperability impact explicit before database creation/conversion: databases using the Fortress MultiCipher profile are not expected to be readable by ordinary KeePass, KeePassXC, KeePassDX or other KDBX clients unless they later gain explicit support for this format.
+- [ ] Derive independent keys for each cipher layer from the KDBX-derived secret/key material using an explicit domain-separated construction; never reuse one raw encryption key across multiple algorithms merely for convenience.
+- [ ] Define independent nonce/IV generation and uniqueness rules for every layer and authenticate all format/version/algorithm metadata needed to prevent substitution or downgrade attacks.
+- [ ] Provide an explicit, tested migration/export path from Fortress MultiCipher-protected databases back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
+- [ ] Publish deterministic Fortress MultiCipher specification fixtures/test vectors so a future dedicated desktop project can implement byte-for-byte compatible read/write support.
 
 ## Phase 2 — Android application shell
 
@@ -127,7 +131,7 @@ The repository currently contains the project foundation, security/architecture 
 ## Phase 4 — interoperability, hardening and release readiness
 
 - [ ] Test interoperability and round trips with reference KeePass implementations and representative real databases.
-- [ ] Add dedicated MultiCipher interoperability tests against KeePass Desktop + the established MultiCipher plugin for every supported cipher pairing/key mode before enabling MultiCipher writes.
+- [ ] Add dedicated Fortress MultiCipher read/write/reopen, tamper, downgrade and cross-implementation test vectors for every supported cipher configuration before enabling MultiCipher writes; when the future desktop project exists, add bidirectional interoperability tests against it.
 - [ ] Add corruption/failure-injection tests for partial writes, interrupted saves and invalid KDBX structures.
 - [ ] Add backup/atomic-save strategy and verify recovery behavior.
 - [ ] Add Android instrumentation tests for vault lifecycle, autofill target binding and unlock continuation.
