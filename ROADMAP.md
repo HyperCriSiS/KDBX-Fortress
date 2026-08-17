@@ -32,6 +32,10 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Define the Rust vault-core API contract: lifecycle/open/create/save/lock, entry/group CRUD, explicit protected-value retrieval, attachments, opaque handle semantics, FFI error handling and zeroization/lifetime rules. See `docs/VAULT_CORE_API.md`.
 - [ ] Select the initial KDBX implementation strategy after validating candidate Rust libraries against required KDBX3/KDBX4 compatibility, Argon2/AES-KDF, AES/ChaCha20, protected streams, attachments, custom data and round-trip preservation.
 - [ ] Create deterministic KDBX compatibility fixtures and round-trip tests before exposing vault operations to Android.
+  - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
+  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values.
+  - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
+  - [ ] Add executable round-trip/interoperability tests before enabling write support.
 - [ ] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
@@ -95,4 +99,4 @@ The repository currently contains the project documentation baseline, Android/Ko
 
 ## Completion status
 
-**Not fully completed.** The threat model and vault-core API boundary are now frozen at documentation level. The immediate priority is to resolve the license gate and select/prove the KDBX engine against deterministic compatibility fixtures before production vault implementation begins.
+**Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, and the deterministic KDBX compatibility/negative-corpus matrix is now defined. The immediate priority is to resolve the license gate, materialize the synthetic KDBX fixtures, and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
