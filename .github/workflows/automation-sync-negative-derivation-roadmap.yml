@@ -1,0 +1,36 @@
+name: Synchronize negative fixture derivation roadmap
+on:
+  push:
+    paths:
+      - '.github/workflows/automation-sync-negative-derivation-roadmap.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update roadmap and validate foundation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ROADMAP.md')
+          s = p.read_text(encoding='utf-8')
+          entry = '- [x] Verify that committed truncated-header and invalid-signature KDBX4 negative fixtures remain deterministic byte-level derivations of the known-good synthetic fixture; run this invariant in Foundation CI (`1caa192d`).\n'
+          if entry not in s:
+              anchor = '- [x] Materialize a deterministic invalid-signature KDBX4 negative fixture with SHA-256 manifest metadata and an explicit `expected_failure` contract; corrupt the KDBX magic without changing the remainder of the known-good fixture (`21664651`).\n'
+              if anchor not in s:
+                  raise SystemExit('invalid-signature roadmap anchor missing')
+              s = s.replace(anchor, anchor + entry, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          python3 tools/run_foundation_checks.py
+          git diff --check
+      - name: Commit roadmap and remove helper
+        run: |
+          rm -f .github/workflows/automation-sync-negative-derivation-roadmap.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ROADMAP.md .github/workflows/automation-sync-negative-derivation-roadmap.yml
+          git commit -m 'docs: record deterministic negative fixture checks'
+          git push origin HEAD:main
