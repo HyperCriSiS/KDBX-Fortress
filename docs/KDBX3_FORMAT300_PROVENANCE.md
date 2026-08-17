@@ -7,9 +7,12 @@ This document records only facts verified against the official `keepassxreboot/k
 - Upstream repository: `keepassxreboot/keepassxc`
 - Upstream branch inspected: `develop`
 - Upstream file: `tests/data/Format300.kdbx`
-- Git blob object ID: `2a71e8c3c2cc9bb1e68f86badda6b36fb4ffa107`
+- Git blob object ID: `dc67f35a11ec8caf49583798280aa883657436e2`
+- Blob size: 2014 bytes
 - Upstream history anchor: commit `18d3fe55f883d000b499804e22590f0c86399a63`
-- Upstream semantic oracle: `tests/TestKdbx3.cpp` (Git blob object ID `df76a55de0b366a6bd43212a58d5ada0c60adb43` at the inspected `develop` tree)
+- Upstream semantic oracle: `tests/TestKdbx3.cpp` (Git blob object ID `df76a55de0b366a6bd43212a58d5ada0c60adb43` at the originally inspected tree)
+
+The blob ID was re-verified directly from the Git tree at the history anchor `18d3fe55f883d000b499804e22590f0c86399a63` and from current `develop`; both resolve `tests/data/Format300.kdbx` to `dc67f35a11ec8caf49583798280aa883657436e2`. The previously recorded `2a71e8c3c2cc9bb1e68f86badda6b36fb4ffa107` value was not the file blob and must not be used as a provenance identifier.
 
 The Git blob object ID above is **not** the fixture SHA-256 required by `docs/FIXTURE_PROVENANCE.md`. A cryptographic SHA-256 must be calculated from the exact imported bytes and recorded before the fixture is accepted.
 
@@ -29,7 +32,7 @@ The upstream KDBX3 test establishes these observable expectations for `Format300
 - Nested group `General` contains two child groups and no direct entries.
 - Nested group `Windows` contains no child groups and no direct entries.
 
-These expectations come from KeePassXC's own `TestKdbx3.cpp`; they are an upstream semantic oracle, not yet an independent-reader validation for KDBX Fortress.
+These expectations come from KeePassXC's own KDBX3 test; they are an upstream semantic oracle, not yet an independent-reader validation for KDBX Fortress.
 
 ## Acceptance items still open
 
