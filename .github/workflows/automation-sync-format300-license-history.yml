@@ -1,0 +1,41 @@
+name: Sync Format300 license history roadmap
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/KDBX3_FORMAT300_LICENSE_AUDIT.md'
+      - '.github/workflows/automation-sync-format300-license-history.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Record verified historical license evidence
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ROADMAP.md')
+          s = p.read_text(encoding='utf-8')
+          line = '- [x] Trace `Format300.kdbx` licensing history through upstream KeePassX/KeePassXC commits: project-level/default `GPL-2 or GPL-3` context predates the fixture and the introducing commit carries explicit GPL-2/3 test/reader code, but no unambiguous fixture-specific assignment was found; redistribution therefore remains conservatively blocked.'
+          if line not in s:
+              marker = '## Completion status'
+              if marker not in s:
+                  raise SystemExit('completion marker missing')
+              s = s.replace(marker, line + '\n\n' + marker, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit roadmap and remove helper
+        shell: bash
+        run: |
+          rm -f .github/workflows/automation-sync-format300-license-history.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'docs: record Format300 license history audit' || exit 0
+          git push origin HEAD:main
