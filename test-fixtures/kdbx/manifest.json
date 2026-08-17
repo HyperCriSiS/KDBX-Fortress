@@ -14,6 +14,21 @@
         "password": "fixture-secret",
         "url": "https://example.test"
       }
+    },
+    {
+      "file": "unicode-kdbx4.kdbx",
+      "sha256": "43a206b65b0387c66ae1c27e95c5e84ba8d737cee0d2d5ad7cfb95b9767ef30a",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "purpose": "Unicode round-trip interoperability fixture",
+      "expected": {
+        "group": "Synthetisch-Üñîçødé-测试",
+        "title": "Anmeldung 🔐 – 東京",
+        "username": "nützer@example.test",
+        "password": "pässwörd-Δ-秘密",
+        "url": "https://例え.test/über",
+        "notes": "Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀"
+      }
     }
   ]
 }

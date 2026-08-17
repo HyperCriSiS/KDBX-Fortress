@@ -35,6 +35,7 @@ The repository currently contains the project documentation baseline, Android/Ko
 - [x] Materialize the first synthetic KDBX4 password-only interoperability fixture with manifest/SHA-256 validation; expand the corpus across the remaining compatibility matrix.
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
   - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values.
+  - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
 - [ ] Document the crypto-agility policy. Any post-quantum protection must be additive/optional and must not break standard KDBX interoperability by silently inventing a non-standard database format.

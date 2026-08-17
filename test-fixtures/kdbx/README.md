@@ -9,3 +9,5 @@ Validate the corpus with:
 ```bash
 python tools/validate_kdbx_fixtures.py
 ```
+
+`unicode-kdbx4.kdbx` exercises Unicode round-tripping across group, title, username, password, URL and notes.
