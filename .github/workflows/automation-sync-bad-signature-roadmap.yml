@@ -1,0 +1,36 @@
+name: automation sync invalid-signature fixture roadmap
+on:
+  push:
+    paths:
+      - '.github/workflows/automation-sync-bad-signature-roadmap.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record verified invalid-signature fixture
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ROADMAP.md')
+          s = p.read_text(encoding='utf-8')
+          entry = '- [x] Materialize a deterministic invalid-signature KDBX4 negative fixture with SHA-256 manifest metadata and an explicit `expected_failure` contract; corrupt the KDBX magic without changing the remainder of the known-good fixture (`21664651`).\n'
+          if entry not in s:
+              anchor = '- [x] Materialize a deterministic truncated-header KDBX4 negative fixture with SHA-256 manifest metadata and an explicit `expected_failure` contract; validate positive and negative fixture schemas separately (`06ed267b`).\n'
+              if anchor not in s:
+                  raise SystemExit('negative fixture roadmap anchor missing')
+              s = s.replace(anchor, anchor + entry, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          python3 tools/validate_kdbx_fixtures.py
+          git diff --check
+      - name: Commit roadmap and remove helper
+        run: |
+          rm -f .github/workflows/automation-sync-bad-signature-roadmap.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ROADMAP.md .github/workflows/automation-sync-bad-signature-roadmap.yml
+          git commit -m 'docs: record invalid-signature KDBX fixture'
+          git push origin HEAD:main
