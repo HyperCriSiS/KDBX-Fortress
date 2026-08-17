@@ -14,7 +14,7 @@ KDBX Fortress treats standard KDBX interoperability as a hard compatibility boun
 
 KDBX Fortress may provide an optional, separately isolated `MultiCipher` module for compatibility with the established KeePass Desktop MultiCipher plugin. This is a compatibility feature, not a Fortress-specific cryptographic format.
 
-The current KeePass plugin catalog describes MultiCipher as using two ciphers for one database and lists AES-256, 3DES-192, ChaCha20 and Salsa20 as supported ciphers. The plugin's own documentation describes two independent keys and a dual-stream construction. Fortress must not infer compatibility from those summaries alone: the exact on-disk format and key-handling behavior must be verified against the plugin source and independent KeePass Desktop read/write tests before implementation is enabled.
+The current official KeePass plugin catalog describes MultiCipher as using two ciphers for one database and lists AES-256, 3DES-192, ChaCha20 and Salsa20 as supported ciphers. The plugin's own documentation describes two independent keys and a dual-stream construction. Fortress must not infer compatibility from those summaries alone: the exact on-disk format and key-handling behavior must be verified against the plugin source and independent KeePass Desktop read/write tests before implementation is enabled.
 
 Rules for the Fortress MultiCipher module:
 
