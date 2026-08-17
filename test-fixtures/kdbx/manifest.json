@@ -36,6 +36,13 @@
       "format": "KDBX4",
       "purpose": "deterministic truncated-header rejection fixture",
       "expected_failure": "truncated_header"
+    },
+    {
+      "file": "bad-signature-kdbx4.kdbx",
+      "sha256": "3eb2d4f8a1d265b68dc982fe9de498f865007ab5ef2512575c54d831f8508ca0",
+      "format": "KDBX4",
+      "purpose": "deterministic invalid-signature rejection fixture",
+      "expected_failure": "invalid_signature"
     }
   ]
 }

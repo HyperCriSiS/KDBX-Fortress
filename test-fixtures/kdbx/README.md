@@ -13,3 +13,5 @@ python tools/validate_kdbx_fixtures.py
 `unicode-kdbx4.kdbx` exercises Unicode round-tripping across group, title, username, password, URL and notes.
 
 - `truncated-header-kdbx4.kdbx`: deterministic negative fixture containing only the first 8 bytes of the basic KDBX4 file; future vault engines must reject it as a truncated header without panic.
+
+- `bad-signature-kdbx4.kdbx`: deterministic negative fixture derived from the basic KDBX4 fixture with the first signature byte corrupted; future vault engines must reject it as an invalid KDBX signature without panic.
