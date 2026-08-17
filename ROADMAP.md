@@ -188,6 +188,8 @@ The repository currently contains the project documentation baseline, Android/Ko
 - Autofill correctness depends on real Android/browser/WebView/Credential Manager behavior in addition to fixture-level tests; some target apps may not expose enough trustworthy metadata for safe automatic filling.
 - Browser/OEM/platform incompatibilities must degrade to explicit selection or no match rather than unsafe origin guessing; perfect coverage cannot be guaranteed by the password manager alone.
 
+- [x] Record authoritative KeePassXC `Format300.kdbx` provenance anchor and upstream expected semantics (upstream commit `18d3fe55f883d000b499804e22590f0c86399a63`, Git blob `2a71e8c3c2cc9bb1e68f86badda6b36fb4ffa107`); fixture-specific license, cryptographic SHA-256 and independent-reader validation remain open.
+
 ## Completion status
 
 **Not fully completed.** The threat model and vault-core API boundary are frozen at documentation level, the repository license/branding policy is now fixed as `AGPL-3.0-only` plus separate trademark guidance, and the deterministic KDBX compatibility/negative-corpus matrix is defined. The immediate priority is to materialize the remaining synthetic KDBX fixtures and select/prove the KDBX engine against those acceptance gates before production vault implementation begins.
