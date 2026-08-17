@@ -1,6 +1,6 @@
-# KDBX Bastion
+# KDBX Fortress
 
-KDBX Bastion is a security-first Android password manager compatible with KeePass/KDBX databases.
+KDBX Fortress is a security-first Android password manager compatible with KeePass/KDBX databases.
 
 The project is a Greenfield implementation focused on reliable Android Autofill, strict credential-target verification, explicit persistence, and a small trusted core.
 
