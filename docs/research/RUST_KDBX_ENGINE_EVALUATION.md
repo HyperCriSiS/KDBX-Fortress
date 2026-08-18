@@ -43,18 +43,23 @@ The upstream project is actively maintained. This is important, but maintenance 
 
 Fortress deliberately starts with **read-only use** of the engine.
 
-The first integration gate is executable parsing of project-owned deterministic fixtures. The engine is pinned in `rust/vault-core/Cargo.toml`, and `rust/vault-core/tests/kdbx_read_compat.rs` verifies:
+The first integration gate is executable parsing of project-owned deterministic fixtures. The engine is pinned in `rust/vault-core/Cargo.toml`, and the Rust compatibility tests verify:
 
 - a project-generated KDBX 3.1 / AES-KDF / AES-256-CBC fixture opens, reports the expected KDF/cipher configuration and preserves a Salsa20-protected password plus a custom field;
 - the basic KDBX4 fixture opens, reports Argon2d plus AES-256-CBC and exposes the expected credential fields;
 - a deterministic KDBX4 fixture using Argon2id plus AES-256-CBC opens and exposes the expected credential fields;
 - a deterministic KDBX4 fixture using Argon2id plus ChaCha20 outer encryption opens and exposes the expected credential fields;
 - a deterministic KDBX4 attachment/custom-data fixture preserves two binary-pool attachments, including protected/unprotected state and exact bytes, and preserves `CustomData` at database, group and entry levels;
+- a deterministic KDBX4 composite-key fixture opens only with the required password plus the exact 32-byte raw keyfile; missing/wrong password and missing/wrong keyfile combinations are rejected;
 - the Unicode KDBX4 fixture preserves expected Unicode text;
 - truncated headers are rejected;
 - invalid KDBX signatures are rejected.
 
-This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, as well as KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels. Remaining Phase 0 engine validation still includes key-file combinations and round-trip preservation gates before write support can be considered.
+This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Remaining Phase 0 engine validation is dominated by resource-budget hardening and independent round-trip/reference-tool preservation gates before production open/write support can be considered.
+
+### Keyfile-format note
+
+The pinned `keepass = 0.13.18` parser accepts raw 32-byte, 64-character hexadecimal, XML v1 and XML v2 keyfile inputs. The reviewed XML v2 parser explicitly does **not** validate the XML `Hash` attribute in this version. Fortress therefore uses a deterministic raw-32-byte keyfile for the first composite-key acceptance gate instead of treating XML-v2 integrity as verified. XML keyfile interoperability can be added later as a separate fixture, but it must not be described as hash-validated unless the dependency or Fortress performs that validation explicitly.
 
 ## Why writing stays disabled
 
@@ -131,7 +136,8 @@ Rejected. OneKeePass is a learning source only. Fortress keeps its own narrowly 
 3. [x] Project-generated KDBX4 Argon2id/ChaCha20 fixture and read test pass in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 4. [x] Project-generated KDBX4 Argon2id/AES-256-CBC fixture and read test pass in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 5. [x] Project-generated KDBX4 binary-pool attachment and database/group/entry `CustomData` fixture passes exact read-preservation tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
-6. [ ] Add resource-budget enforcement before production open/decrypt is exposed to Android.
-7. Keep the engine behind an internal adapter/handle boundary.
-8. Enable write support only after independent round-trip and reference-tool validation.
-9. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.
+6. [x] Project-generated KDBX4 password + raw-32-byte-keyfile composite-key fixture passes positive/negative credential tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
+7. [ ] Add resource-budget enforcement before production open/decrypt is exposed to Android.
+8. Keep the engine behind an internal adapter/handle boundary.
+9. Enable write support only after independent round-trip and reference-tool validation.
+10. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.

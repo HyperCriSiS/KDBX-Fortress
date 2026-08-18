@@ -117,6 +117,35 @@
       }
     },
     {
+      "file": "kdbx4-composite-key-keyfile.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "396984f7d656e894ec1e42e6644a47516d19a3daf6db1c9fd80a2a5538f1f35e",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "kdf": {
+        "name": "Argon2id",
+        "iterations": 2,
+        "memory_bytes": 65536,
+        "parallelism": 1,
+        "version": 19
+      },
+      "outer_cipher": "AES-256-CBC",
+      "keyfile": {
+        "file": "kdbx4-composite-key.raw32.key",
+        "format": "raw32",
+        "size": 32,
+        "sha256": "3b3f1e0480af8a0e557476d376630c206959e1af1d55dd8464a04aa80a206cc1"
+      },
+      "purpose": "deterministic KDBX4 read-compatibility fixture requiring a composite password + raw-32-byte keyfile",
+      "expected": {
+        "group": "Synthetic",
+        "title": "Example Login",
+        "username": "fixture-user",
+        "password": "fixture-secret",
+        "url": "https://example.test"
+      }
+    },
+    {
       "file": "kdbx4-argon2id-chacha20.kdbx.b64",
       "encoding": "base64",
       "sha256": "86f1300867f7478aeb774d6d27eb52ee0346559066f39b9a890e1f2a8deb570b",
