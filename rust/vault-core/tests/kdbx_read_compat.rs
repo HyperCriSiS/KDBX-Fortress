@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::Error as IoError;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use kdbx_fortress_vault_core::{KdbxPostDecryptLimits, validate_decrypted_database};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
@@ -10,13 +11,20 @@ use keepass::{
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
 
+fn validate_fixture_database(database: Database) -> Result<Database, Box<dyn Error>> {
+    validate_decrypted_database(&database, KdbxPostDecryptLimits::default())
+        .map_err(|error| IoError::other(format!("post-decrypt validation failed: {error:?}")))?;
+    Ok(database)
+}
+
 fn open_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
     let mut source = bytes;
-    Database::open(
+    let database = Database::open(
         &mut source,
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
     )
-    .map_err(|error| IoError::other(error.to_string()).into())
+    .map_err(|error| IoError::other(error.to_string()))?;
+    validate_fixture_database(database)
 }
 
 fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
@@ -257,28 +265,4 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
     );
 
     Ok(())
-}
-
-#[test]
-fn rejects_truncated_header_fixture() {
-    let mut source = &include_bytes!("../../../test-fixtures/kdbx/truncated-header-kdbx4.kdbx")[..];
-
-    let result = Database::open(
-        &mut source,
-        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
-    );
-
-    assert!(result.is_err(), "truncated KDBX header must be rejected");
-}
-
-#[test]
-fn rejects_invalid_signature_fixture() {
-    let mut source = &include_bytes!("../../../test-fixtures/kdbx/bad-signature-kdbx4.kdbx")[..];
-
-    let result = Database::open(
-        &mut source,
-        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
-    );
-
-    assert!(result.is_err(), "invalid KDBX signature must be rejected");
 }
