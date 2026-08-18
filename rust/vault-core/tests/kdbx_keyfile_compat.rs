@@ -8,8 +8,10 @@ use keepass::{
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
-const FIXTURE: &str = include_str!("../../../test-fixtures/kdbx/kdbx4-composite-key-keyfile.kdbx.b64");
-const KEYFILE: &[u8; 32] = include_bytes!("../../../test-fixtures/kdbx/kdbx4-composite-key.raw32.key");
+const FIXTURE: &str =
+    include_str!("../../../test-fixtures/kdbx/kdbx4-composite-key-keyfile.kdbx.b64");
+const KEYFILE: &[u8; 32] =
+    include_bytes!("../../../test-fixtures/kdbx/kdbx4-composite-key.raw32.key");
 
 fn fixture_bytes() -> Result<Vec<u8>, Box<dyn Error>> {
     STANDARD
@@ -41,7 +43,10 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
             ..
         }
     ));
-    assert!(matches!(db.config.outer_cipher_config, OuterCipherConfig::AES256));
+    assert!(matches!(
+        db.config.outer_cipher_config,
+        OuterCipherConfig::AES256
+    ));
 
     let root = db.root();
     let group = root
@@ -57,7 +62,11 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
 
     let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, DatabaseKey::new().with_password(FIXTURE_PASSWORD)).is_err(),
+        Database::open(
+            &mut source,
+            DatabaseKey::new().with_password(FIXTURE_PASSWORD)
+        )
+        .is_err(),
         "password without required keyfile must be rejected"
     );
 
@@ -65,13 +74,21 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
     wrong_keyfile[0] ^= 0x01;
     let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, composite_key(FIXTURE_PASSWORD, &wrong_keyfile)?).is_err(),
+        Database::open(
+            &mut source,
+            composite_key(FIXTURE_PASSWORD, &wrong_keyfile)?
+        )
+        .is_err(),
         "wrong keyfile must be rejected"
     );
 
     let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, composite_key("wrong-fixture-password", KEYFILE)?).is_err(),
+        Database::open(
+            &mut source,
+            composite_key("wrong-fixture-password", KEYFILE)?
+        )
+        .is_err(),
         "wrong password must be rejected even with correct keyfile"
     );
 
