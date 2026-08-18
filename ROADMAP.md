@@ -25,9 +25,10 @@ The repository currently contains the project foundation, security/architecture 
 - [x] Verify that committed truncated-header and invalid-signature KDBX4 negative fixtures remain deterministic byte-level derivations of the known-good synthetic fixture; run this invariant in Foundation CI (`1caa192d`).
 - [x] Materialize the first synthetic KDBX4 password-only interoperability fixture with manifest/SHA-256 validation; expand the corpus across the remaining compatibility matrix.
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
-  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values, including required KDBX3/AES-KDF coverage. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
+  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values across the remaining compatibility matrix. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
+    - [x] Materialize a deterministic synthetic KDBX 3.1 fixture covering AES-KDF, AES-256-CBC, Salsa20-protected password data, notes and a custom field; validate the SHA-256 over the decoded binary representation.
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
-  - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
+  - [x] Add executable read compatibility tests against the pinned `keepass = 0.13.18` engine for the currently materialized KDBX3/KDBX4 positive fixtures and malformed-header/signature negative fixtures.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 
@@ -91,56 +92,114 @@ The repository currently contains the project foundation, security/architecture 
 - [ ] Implement save suggestions for new credentials without creating duplicates on repeated callbacks.
 - [ ] Detect changed passwords/usernames and offer explicit update vs create-new choices.
 - [ ] Bind save/update prompts to the same normalized target identity model used for filling.
-- [ ] Do not persist credentials automatically from ambiguous forms or untrusted target identity.
-- [ ] Handle registration→login transitions and password-change flows without overwriting the wrong entry.
+- [ ] Never silently overwrite an existing credential from an autofill/save callback.
+- [ ] Define safe cancellation/retry behavior when the vault locks or target identity changes during save/update.
 
-### 3.5 OTP/passkeys and advanced credentials
+### 3.5 Credential presentation and fallback
 
-- [ ] Support TOTP storage/display/autofill while keeping seed retrieval explicitly protected.
-- [ ] Define whether OTP should be filled automatically, copied manually or require an explicit user gesture per security policy.
-- [ ] Add passkey support through Credential Manager only after password-credential integration is stable; keep passkey private-key material behind the vault-core security boundary where technically feasible.
-- [ ] Document interoperability limitations for credential types that cannot be represented portably in standard KDBX fields.
+- [ ] Rank suggestions deterministically by exact verified origin, explicit verified association, exact app package binding, normalized KDBX URL host and only then controlled fallback rules.
+- [ ] Distinguish exact/verified matches from weak/manual candidates in the UI rather than presenting all results with equal trust.
+- [ ] Provide manual search/selection fallback when confidence is insufficient; manual selection must not permanently weaken matching rules unless the user explicitly creates an association.
+- [ ] Return no credential suggestion when the target identity is missing, contradictory or unsafe and the user has not explicitly invoked manual selection.
+- [ ] Avoid exposing usernames or entry titles to an untrusted target before the matching policy has authorized disclosure.
 
-### 3.6 Autofill privacy, UX and failure handling
+### 3.6 Locking, lifecycle and concurrency
 
-- [ ] Minimize data returned to Android autofill/Credential Manager surfaces until the user selects a credential.
-- [ ] Never expose passwords, OTP seeds or protected custom fields in labels, logs, accessibility descriptions or diagnostic telemetry.
-- [ ] Define unlock-on-demand behavior when an autofill request arrives while the vault is locked; bind post-unlock continuation to the original target and expire it quickly.
-- [ ] Provide clear no-match, ambiguous-match and blocked-for-security states rather than silently filling the closest-looking entry.
-- [ ] Add optional per-entry/per-domain autofill disable controls and an app/domain denylist.
-- [ ] Ensure autofill UI remains usable with large vaults without loading/decrypting every protected field eagerly.
+- [ ] Define behavior when the vault is locked before an autofill request, locks while a request is pending, or is explicitly locked from another app surface.
+- [ ] Invalidate pending credential handles and decrypted temporary state immediately when the vault locks.
+- [ ] Handle activity/process recreation, background/foreground transitions, display-off/on and long inactivity without retaining stale fill state.
+- [ ] Treat concurrent, duplicated and late Autofill/Credential Manager callbacks as normal input; prevent stale callbacks from filling a newly focused or unrelated target.
+- [ ] Ensure autofill never silently unlocks the vault or extends a security timeout merely because Android retries a request.
 
-### 3.7 Autofill regression corpus
+### 3.7 Credential Manager and passkeys
 
-- [ ] Build synthetic Android/browser autofill fixtures covering normal native apps, Chromium-family browsers, Firefox-family browsers, WebViews, custom tabs and representative hybrid-app flows.
-- [ ] Add fixtures for package/domain disagreement, redirects, subdomain changes, IDN/punycode domains, HTTP↔HTTPS transitions and custom ports.
-- [ ] Add fixtures for multi-step login, multiple credential forms on one page, password-change forms, registration forms and OTP fields.
-- [ ] Add fixtures for malformed or missing Autofill hints and browser structures that expose incomplete origin metadata.
-- [ ] Add fixtures for vault-lock-during-fill, app-switch-during-unlock, stale callbacks, duplicate save callbacks and process recreation.
-- [ ] Add regression fixtures/tests derived from known KeePassDX and KeePass2Android failure classes rather than assuming their historical edge cases cannot affect Fortress.
+- [ ] Define password credential behavior through Credential Manager separately from classic AutofillService behavior.
+- [ ] Add passkey/WebAuthn support only after password matching and vault secret boundaries are stable.
+- [ ] Bind passkey lookup to a trustworthy RP ID/origin and reject requests whose RP identity cannot be validated.
+- [ ] Do not return arbitrary fallback passkeys merely because no exact RP match exists; manual recovery paths must remain explicit and origin-bound.
+- [ ] Treat browser-mediated Credential Manager requests as a privileged compatibility surface requiring browser/origin verification rather than trusting claimed origin metadata blindly.
 
-## Phase 4 — interoperability, hardening and release readiness
+### 3.8 Autofill compatibility and regression matrix
 
-- [ ] Test interoperability and round trips with reference KeePass implementations and representative real databases.
-- [ ] Add corruption/failure-injection tests for partial writes, interrupted saves and invalid KDBX structures.
-- [ ] Add backup/atomic-save strategy and verify recovery behavior.
-- [ ] Add Android instrumentation tests for vault lifecycle, autofill target binding and unlock continuation.
-- [ ] Perform dependency/license/security review before first public prerelease.
-- [ ] Perform manual security review of FFI/JNI boundaries and sensitive-memory lifetime.
-- [ ] Verify release artifact provenance, version consistency and reproducibility before stable release.
+Every supported release must exercise the applicable cases below. Automated fixtures cover deterministic parsing/matching behavior; real-device tests cover Android/browser behavior that fixtures cannot reproduce.
 
-## Phase 5 — post-MVP / optional Fortress MultiCipher extension (no current priority)
+- [ ] Native Android Views with correct autofill hints.
+- [ ] Jetpack Compose credential fields.
+- [ ] Custom Views and forms with missing, incomplete or incorrect hints.
+- [ ] Chrome/Chromium-family browser logins.
+- [ ] Firefox-family browser logins, including Firefox and Waterfox Android.
+- [ ] Brave browser login and Credential Manager behavior.
+- [ ] Vanadium on GrapheneOS.
+- [ ] Vivaldi browser behavior.
+- [ ] Android System WebView and representative embedded WebViews.
+- [ ] Username/password, username-only and password-only forms.
+- [ ] Password-change flows with old/new/confirmation fields.
+- [ ] Registration forms containing login-like fields.
+- [ ] Multi-step username→password flows.
+- [ ] Dynamically inserted/replaced fields after initial page load.
+- [ ] Multiple saved accounts for the same origin/app.
+- [ ] Multiple URLs/domains associated with one KDBX entry.
+- [ ] No matching credential.
+- [ ] Locked vault at request time and vault relock during the flow.
+- [ ] App switch/background, long inactivity and display off/on during a pending request.
+- [ ] Activity recreation and process restart while an autofill flow is pending.
+- [ ] Duplicate, concurrent and late platform callbacks.
+- [ ] Domain/origin mismatch and phishing look-alikes.
+- [ ] Malicious/unrelated app attempting to claim another service's web identity.
+- [ ] Explicit user-approved app↔website association and later revocation/change.
+- [ ] Missing/untrustworthy web origin: no automatic credential disclosure; manual path only.
+- [ ] Embedded/iframe login contexts to the extent Android/browser APIs expose them safely.
+- [ ] Save-new vs update-existing credential workflows.
+- [ ] Credential Manager password credentials.
+- [ ] Passkey creation/use only after the dedicated passkey phase is enabled.
+- [ ] Regression fixtures/tests derived from relevant historical KeePassDX and KeePass2Android failures, especially browser-origin, Android-version, passkey and WebView cases.
 
-This phase is deliberately parked at the end of the roadmap. It is **not required for MVP, first public prerelease, stable release, ordinary KDBX compatibility or the core Android password-manager experience**. Do not pull MultiCipher work forward while higher-priority standard-KDBX, vault, Android, autofill, interoperability or hardening work remains.
+### 3.9 Phase-3 completion gate
 
-- [x] Record the crypto-agility direction: standard KDBX remains the interoperable default; Fortress MultiCipher, if implemented later, is a separate opt-in Fortress-specific extension. See `docs/CRYPTO_AGILITY.md`.
-- [ ] Design and document the Fortress MultiCipher format before implementation. Define the exact cascade/construction, independently derived cipher keys, KDF/key-splitting rules, per-layer nonce/IV requirements, authentication/integrity ordering, authenticated metadata, versioning/algorithm identifiers, downgrade resistance, failure behavior and recovery/export semantics.
-- [ ] Implement a separately isolated Fortress `MultiCipher` module only after its construction and on-disk format have been specified, reviewed and covered by deterministic test vectors. Combine established cryptographic primitives only; do not invent a new cipher primitive.
-- [ ] Keep Fortress MultiCipher disabled by default and show an explicit interoperability warning before database creation/conversion: ordinary KeePass, KeePassXC, KeePassDX and other KDBX clients are not expected to open Fortress MultiCipher vaults unless they later add explicit support.
-- [ ] Derive independent, domain-separated keys for every cipher layer; never reuse one raw encryption key across multiple algorithms.
-- [ ] Define independent nonce/IV generation and uniqueness rules for every layer and authenticate all format/version/algorithm metadata required to prevent substitution or downgrade attacks.
-- [ ] Add deterministic read/write/reopen, tamper, parameter-substitution, downgrade and malformed-input test vectors for every supported configuration before enabling MultiCipher writes.
-- [ ] Provide an explicit, tested migration/export path from Fortress MultiCipher back to ordinary standard-KDBX encryption without modifying the source vault until the compatible export has reopened and passed integrity checks.
-- [ ] Publish the canonical Fortress MultiCipher specification and deterministic fixtures/test vectors in an implementation-independent form so other clients can implement byte-for-byte compatible support.
-- [ ] Define and later create a **separate dedicated desktop project** implementing the same Fortress MultiCipher specification for desktop KeePass/KDBX workflows. Desktop support is downstream work and must not block the Android project.
-- [ ] Once the desktop implementation exists, add bidirectional cross-implementation interoperability tests between KDBX Fortress and the desktop implementation.
+- [ ] No permanent Accessibility Service or window-title URL workaround is required for supported core autofill flows.
+- [ ] Automatic credential disclosure occurs only after target identity passes the shared matching policy.
+- [ ] Manual fallback remains available without converting weak matches into implicit permanent trust.
+- [ ] Deterministic matching tests and the maintained real-device/browser compatibility matrix pass for supported Android versions before Phase 3 is considered complete.
+- [ ] Known regressions imported from KeePassDX/KeePass2Android research have dedicated tests or an explicitly documented platform limitation.
+
+## Phase 4 — storage, interoperability hardening and prerelease
+
+- [ ] Integrate Android Storage Access Framework with atomic write/replace semantics where providers permit it.
+- [ ] Handle provider capability differences, external modifications and stale-cache/conflict cases explicitly; include regression coverage for sync-provider files that change remotely while a stale local/provider view still exists.
+- [ ] Add crash-safe save, backup/recovery behavior and corruption diagnostics.
+- [ ] Validate round-trips with KeePass and representative real-world KDBX databases.
+- [ ] Complete unsafe/FFI review plus Android exported-component/permission review.
+- [ ] Add static analysis, dependency auditing, secret scanning and reproducible release checks.
+- [ ] Validate accessibility, autofill and lifecycle behavior across the supported Android compatibility matrix.
+- [ ] Document exact KDBX compatibility limits and unsupported fields/features before release.
+- [ ] Produce signed prereleases only after security and compatibility gates pass.
+
+## Phase 5 — Post-MVP / optional: Fortress MultiCipher extension
+
+**Priority: deferred / no current priority. This phase does not block the MVP, first prerelease or first stable release. Do not start it until the standard KDBX product path is complete and stable.**
+
+- [ ] Design a separate optional Fortress MultiCipher module only after the standard KDBX implementation, Android app, autofill, storage and release hardening phases are complete.
+- [ ] Define a versioned multi-cipher profile/container that composes existing reviewed cryptographic primitives without modifying the standard KDBX path.
+- [ ] Specify key separation/derivation, cipher ordering, nonce/IV handling, authenticated metadata, failure semantics and downgrade protection before implementation; multiple individually secure ciphers must not be assumed to form a secure construction automatically.
+- [ ] Keep all standard KDBX modes fully interoperable; the MultiCipher mode must require an explicit opt-in and a prominent warning that ordinary KeePass/KeePassXC/KeePassDX/other KDBX clients cannot open that database without compatible support.
+- [ ] Provide an explicit conversion/export path from MultiCipher back to standard interoperable KDBX.
+- [ ] After the Fortress module is stable, create a dedicated desktop project/adapter that implements the same versioned MultiCipher specification for desktop KeePass use rather than coupling Android development to a desktop plugin.
+- [ ] Publish interoperability vectors/specification and independently test Android↔desktop MultiCipher round-trips before considering the extension usable.
+
+## Validation criteria
+
+- Foundation CI remains green on the default branch.
+- KDBX interoperability tests prove expected round-trips without silent data loss before write support is enabled.
+- Security regression coverage exists for lock/unlock, FFI, storage and autofill-origin boundaries.
+- Standard KDBX modes remain interoperable with established clients; any optional post-MVP MultiCipher extension is isolated, explicitly opt-in and never used to redefine ordinary KDBX compatibility.
+- Real-device validation includes normal apps, browsers and WebView/system-view cases.
+
+## Blockers / external dependencies
+
+- The initial Rust KDBX engine must pass the project's compatibility corpus before Android UI work depends on it.
+- Post-quantum or MultiCipher claims remain gated on concrete standards, threat models and interoperability; neither is a prerequisite for the standard KDBX MVP.
+- Autofill correctness depends on real Android/browser/WebView behavior and therefore cannot be proven only with static fixtures.
+
+## Completion
+
+**Project is not fully completed.** The immediate priority is to finish Phase 0 compatibility/engine validation, then begin the minimal read-only Rust vault core. MultiCipher is intentionally deferred until after the standard product path is stable.
