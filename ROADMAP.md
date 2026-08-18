@@ -27,6 +27,7 @@ The repository currently contains the project foundation, security/architecture 
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
   - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values across the remaining compatibility matrix. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
     - [x] Materialize a deterministic synthetic KDBX 3.1 fixture covering AES-KDF, AES-256-CBC, Salsa20-protected password data, notes and a custom field; validate the SHA-256 over the decoded binary representation.
+    - [x] Materialize a deterministic synthetic KDBX4 fixture covering Argon2id and ChaCha20 outer encryption; validate the decoded SHA-256 and executable read path on Linux plus Android Rust targets.
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [x] Add executable read compatibility tests against the pinned `keepass = 0.13.18` engine for the currently materialized KDBX3/KDBX4 positive fixtures and malformed-header/signature negative fixtures.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.

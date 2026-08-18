@@ -17,3 +17,5 @@ python tools/validate_kdbx_fixtures.py
 - `truncated-header-kdbx4.kdbx`: deterministic negative fixture containing only the first 8 bytes of the basic KDBX4 file; future vault engines must reject it as a truncated header without panic.
 
 - `bad-signature-kdbx4.kdbx`: deterministic negative fixture derived from the basic KDBX4 fixture with the first signature byte corrupted; future vault engines must reject it as an invalid KDBX signature without panic.
+
+`kdbx4-argon2id-chacha20.kdbx.b64` deterministically re-wraps the already validated synthetic KDBX4 inner payload with Argon2id and ChaCha20 outer encryption. The manifest SHA-256 applies to the decoded KDBX bytes, and the Rust compatibility test verifies both the KDF/cipher configuration and expected credential fields.

@@ -32,7 +32,38 @@
       "sha256": "3f9c8fffbe9f69b5e2ec3c33a7b246e90ecb6861b653c173489c0eee49bf472e",
       "password": "fixture-password",
       "format": "KDBX4",
-      "purpose": "minimal password-only interoperability smoke fixture",
+      "purpose": "minimal password-only KDBX4 interoperability smoke fixture covering Argon2d and AES-256-CBC",
+      "expected": {
+        "group": "Synthetic",
+        "title": "Example Login",
+        "username": "fixture-user",
+        "password": "fixture-secret",
+        "url": "https://example.test"
+      },
+      "kdf": {
+        "name": "Argon2d",
+        "iterations": 14,
+        "memory_bytes": 67108864,
+        "parallelism": 2,
+        "version": 19
+      },
+      "outer_cipher": "AES-256-CBC"
+    },
+    {
+      "file": "kdbx4-argon2id-chacha20.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "86f1300867f7478aeb774d6d27eb52ee0346559066f39b9a890e1f2a8deb570b",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "kdf": {
+        "name": "Argon2id",
+        "iterations": 2,
+        "memory_bytes": 65536,
+        "parallelism": 1,
+        "version": 19
+      },
+      "outer_cipher": "ChaCha20",
+      "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and ChaCha20 outer encryption",
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
