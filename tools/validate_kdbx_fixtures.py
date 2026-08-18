@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, json
+import base64, binascii, hashlib, json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,8 +11,19 @@ assert isinstance(entries, list) and entries, 'KDBX fixture manifest must not be
 for entry in entries:
     path = FIXTURES / entry['file']
     assert path.is_file(), f'missing KDBX fixture: {path}'
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    assert actual == entry['sha256'], f'SHA-256 mismatch for {path.name}'
+    payload = path.read_bytes()
+    encoding = entry.get('encoding', 'raw')
+    if encoding == 'raw':
+        materialized = payload
+    elif encoding == 'base64':
+        try:
+            materialized = base64.b64decode(payload.strip(), validate=True)
+        except binascii.Error as exc:
+            raise AssertionError(f'invalid base64 fixture encoding for {path.name}: {exc}') from exc
+    else:
+        raise AssertionError(f'unsupported fixture encoding for {path.name}: {encoding}')
+    actual = hashlib.sha256(materialized).hexdigest()
+    assert actual == entry['sha256'], f'SHA-256 mismatch for materialized {path.name}'
     assert entry.get('format') in {'KDBX3', 'KDBX4'}, f'unsupported format label for {path.name}'
     if 'expected_failure' in entry:
         assert isinstance(entry['expected_failure'], str) and entry['expected_failure'], f'missing expected failure category for {path.name}'

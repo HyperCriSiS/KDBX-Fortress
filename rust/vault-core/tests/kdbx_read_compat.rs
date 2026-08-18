@@ -1,7 +1,11 @@
 use std::error::Error;
 use std::io::Error as IoError;
 
-use keepass::{Database, DatabaseKey};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use keepass::{
+    Database, DatabaseKey,
+    config::{KdfConfig, OuterCipherConfig},
+};
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
 
@@ -14,14 +18,55 @@ fn open_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
     .map_err(|error| IoError::other(error.to_string()).into())
 }
 
+fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
+    let bytes = STANDARD
+        .decode(encoded.trim())
+        .map_err(|error| IoError::other(error.to_string()))?;
+    open_fixture(&bytes)
+}
+
+#[test]
+fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields()
+-> Result<(), Box<dyn Error>> {
+    let db = open_base64_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx3-aes-aeskdf-basic.kdbx.b64"
+    ))?;
+
+    assert!(matches!(
+        db.config.kdf_config,
+        KdfConfig::Aes { rounds: 6000 }
+    ));
+    assert!(matches!(
+        db.config.outer_cipher_config,
+        OuterCipherConfig::AES256
+    ));
+
+    let root = db.root();
+    let group = root
+        .group_by_path(&["Synthetic KDBX3"])
+        .ok_or_else(|| IoError::other("Synthetic KDBX3 group must exist"))?;
+    let entry = group
+        .entry_by_name("Legacy AES Login")
+        .ok_or_else(|| IoError::other("Legacy AES Login entry must exist"))?;
+
+    assert_eq!(entry.get_title(), Some("Legacy AES Login"));
+    assert_eq!(entry.get_username(), Some("kdbx3-user"));
+    assert_eq!(entry.get_password(), Some("kdbx3-fixture-secret"));
+    assert_eq!(entry.get_url(), Some("https://legacy.example.test"));
+    assert_eq!(entry.get("Notes"), Some("KDBX3 AES-KDF synthetic fixture"));
+    assert_eq!(entry.get("FortressCustom"), Some("custom-value"));
+
+    Ok(())
+}
+
 #[test]
 fn opens_basic_kdbx4_fixture_and_preserves_expected_fields() -> Result<(), Box<dyn Error>> {
     let db = open_fixture(include_bytes!(
         "../../../test-fixtures/kdbx/basic-kdbx4.kdbx"
     ))?;
 
-    let group = db
-        .root()
+    let root = db.root();
+    let group = root
         .group_by_path(&["Synthetic"])
         .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
     let entry = group
@@ -42,8 +87,8 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
         "../../../test-fixtures/kdbx/unicode-kdbx4.kdbx"
     ))?;
 
-    let group = db
-        .root()
+    let root = db.root();
+    let group = root
         .group_by_path(&["Synthetisch-Üñîçødé-测试"])
         .ok_or_else(|| IoError::other("Unicode group must exist"))?;
     let entry = group
@@ -55,7 +100,7 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
     assert_eq!(entry.get_password(), Some("pässwörd-Δ-秘密"));
     assert_eq!(entry.get_url(), Some("https://例え.test/über"));
     assert_eq!(
-        entry.get_notes(),
+        entry.get("Notes"),
         Some("Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀")
     );
 
@@ -64,9 +109,7 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
 
 #[test]
 fn rejects_truncated_header_fixture() {
-    let mut source = &include_bytes!(
-        "../../../test-fixtures/kdbx/truncated-header-kdbx4.kdbx"
-    )[..];
+    let mut source = &include_bytes!("../../../test-fixtures/kdbx/truncated-header-kdbx4.kdbx")[..];
 
     let result = Database::open(
         &mut source,
@@ -78,9 +121,7 @@ fn rejects_truncated_header_fixture() {
 
 #[test]
 fn rejects_invalid_signature_fixture() {
-    let mut source = &include_bytes!(
-        "../../../test-fixtures/kdbx/bad-signature-kdbx4.kdbx"
-    )[..];
+    let mut source = &include_bytes!("../../../test-fixtures/kdbx/bad-signature-kdbx4.kdbx")[..];
 
     let result = Database::open(
         &mut source,

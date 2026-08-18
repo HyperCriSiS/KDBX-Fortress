@@ -25,9 +25,10 @@ The repository currently contains the project foundation, security/architecture 
 - [x] Verify that committed truncated-header and invalid-signature KDBX4 negative fixtures remain deterministic byte-level derivations of the known-good synthetic fixture; run this invariant in Foundation CI (`1caa192d`).
 - [x] Materialize the first synthetic KDBX4 password-only interoperability fixture with manifest/SHA-256 validation; expand the corpus across the remaining compatibility matrix.
   - [x] Define the engine-neutral positive/negative fixture matrix, independent reference-oracle requirement and read/round-trip acceptance gates in `docs/KDBX_COMPATIBILITY_MATRIX.md`.
-  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values, including required KDBX3/AES-KDF coverage. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
+  - [ ] Materialize the synthetic KDBX fixtures plus sidecar manifests and SHA-256 values across the remaining compatibility matrix. Use project-generated fixtures only; upstream fixture files are not required or redistributed.
+    - [x] Materialize a deterministic synthetic KDBX 3.1 fixture covering AES-KDF, AES-256-CBC, Salsa20-protected password data, notes and a custom field; validate the SHA-256 over the decoded binary representation.
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
-  - [ ] Add executable read compatibility tests against the selected/shortlisted engine strategy.
+  - [x] Add executable read compatibility tests against the pinned `keepass = 0.13.18` engine for the currently materialized KDBX3/KDBX4 positive fixtures and malformed-header/signature negative fixtures.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.
 - [ ] Define repository branch/PR/release policy once production implementation starts.
 

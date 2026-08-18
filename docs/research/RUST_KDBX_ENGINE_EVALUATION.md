@@ -45,12 +45,13 @@ Fortress deliberately starts with **read-only use** of the engine.
 
 The first integration gate is executable parsing of project-owned deterministic fixtures. The engine is pinned in `rust/vault-core/Cargo.toml`, and `rust/vault-core/tests/kdbx_read_compat.rs` verifies:
 
+- a project-generated KDBX 3.1 / AES-KDF / AES-256-CBC fixture opens, reports the expected KDF/cipher configuration and preserves a Salsa20-protected password plus a custom field;
 - the basic KDBX4 fixture opens and exposes the expected credential fields;
 - the Unicode KDBX4 fixture preserves expected Unicode text;
 - truncated headers are rejected;
 - invalid KDBX signatures are rejected.
 
-KDBX3/AES-KDF coverage remains a separate fixture task and must be added before Phase 0 compatibility work is considered complete.
+This read corpus now covers both KDBX3/AES-KDF and KDBX4 paths. Remaining Phase 0 engine validation still includes the broader cipher/KDF matrix and round-trip preservation gates before write support can be considered.
 
 ## Why writing stays disabled
 
@@ -122,9 +123,9 @@ Rejected. OneKeePass is a learning source only. Fortress keeps its own narrowly 
 
 ## Decision gates going forward
 
-1. Current deterministic KDBX4 read/rejection tests must pass in Foundation CI.
-2. Add project-generated KDBX3/AES-KDF fixtures and read tests.
-3. Add resource-budget enforcement before production open/decrypt is exposed to Android.
+1. [x] Current deterministic KDBX4 read/rejection tests pass in Foundation CI.
+2. [x] Project-generated KDBX3/AES-KDF fixture and read test pass in Foundation CI.
+3. [ ] Add resource-budget enforcement before production open/decrypt is exposed to Android.
 4. Keep the engine behind an internal adapter/handle boundary.
 5. Enable write support only after independent round-trip and reference-tool validation.
 6. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.

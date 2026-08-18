@@ -11,3 +11,6 @@ workspace = true
 
 [dependencies]
 keepass = { version = "=0.13.18", default-features = false }
+
+[dev-dependencies]
+base64 = "=0.22.1"
