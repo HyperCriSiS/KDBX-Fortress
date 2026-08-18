@@ -240,8 +240,8 @@ fn preflight_kdbx3(
         let field_id = *data
             .get(pos)
             .ok_or(KdbxPreflightError::TruncatedOuterHeader)?;
-        let field_len = read_u16(data, pos + 1)
-            .ok_or(KdbxPreflightError::TruncatedOuterHeader)? as usize;
+        let field_len =
+            read_u16(data, pos + 1).ok_or(KdbxPreflightError::TruncatedOuterHeader)? as usize;
         let value_start = pos
             .checked_add(3)
             .ok_or(KdbxPreflightError::TruncatedOuterHeader)?;
@@ -263,9 +263,11 @@ fn preflight_kdbx3(
                     field: KdfField::AesRounds,
                 });
             }
-            rounds = Some(read_u64_from(value).ok_or(KdbxPreflightError::InvalidKdfField {
-                field: KdfField::AesRounds,
-            })?);
+            rounds = Some(
+                read_u64_from(value).ok_or(KdbxPreflightError::InvalidKdfField {
+                    field: KdfField::AesRounds,
+                })?,
+            );
         }
     }
 
@@ -286,8 +288,8 @@ fn preflight_kdbx4(
         let field_id = *data
             .get(pos)
             .ok_or(KdbxPreflightError::TruncatedOuterHeader)?;
-        let field_len = read_u32(data, pos + 1)
-            .ok_or(KdbxPreflightError::TruncatedOuterHeader)? as usize;
+        let field_len =
+            read_u32(data, pos + 1).ok_or(KdbxPreflightError::TruncatedOuterHeader)? as usize;
         let value_start = pos
             .checked_add(5)
             .ok_or(KdbxPreflightError::TruncatedOuterHeader)?;
@@ -368,7 +370,8 @@ fn parse_kdf_variant_dictionary(
             break;
         }
 
-        let key_len = read_u32(data, pos).ok_or(KdbxPreflightError::MalformedKdfParameters)? as usize;
+        let key_len =
+            read_u32(data, pos).ok_or(KdbxPreflightError::MalformedKdfParameters)? as usize;
         pos = pos
             .checked_add(4)
             .ok_or(KdbxPreflightError::MalformedKdfParameters)?;
@@ -380,7 +383,8 @@ fn parse_kdf_variant_dictionary(
             .ok_or(KdbxPreflightError::MalformedKdfParameters)?;
         pos = key_end;
 
-        let value_len = read_u32(data, pos).ok_or(KdbxPreflightError::MalformedKdfParameters)? as usize;
+        let value_len =
+            read_u32(data, pos).ok_or(KdbxPreflightError::MalformedKdfParameters)? as usize;
         pos = pos
             .checked_add(4)
             .ok_or(KdbxPreflightError::MalformedKdfParameters)?;
@@ -519,10 +523,7 @@ fn set_u32_field(
     Ok(())
 }
 
-fn enforce_aes_rounds(
-    rounds: u64,
-    limits: KdbxResourceLimits,
-) -> Result<(), KdbxPreflightError> {
+fn enforce_aes_rounds(rounds: u64, limits: KdbxResourceLimits) -> Result<(), KdbxPreflightError> {
     if rounds > limits.max_aes_rounds {
         return Err(KdbxPreflightError::AesRoundsTooHigh {
             actual: rounds,
