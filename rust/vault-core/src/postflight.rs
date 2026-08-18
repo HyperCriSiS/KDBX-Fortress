@@ -99,9 +99,11 @@ pub fn validate_decrypted_database(
     }
 
     for entry in database.iter_all_entries() {
-        enforce_count(entry.fields.len(), limits.max_fields_per_entry, |actual, limit| {
-            KdbxPostDecryptError::TooManyFields { actual, limit }
-        })?;
+        enforce_count(
+            entry.fields.len(),
+            limits.max_fields_per_entry,
+            |actual, limit| KdbxPostDecryptError::TooManyFields { actual, limit },
+        )?;
         for (name, value) in &entry.fields {
             let size = usize_to_u64(name.len())?
                 .checked_add(usize_to_u64(value.get().len())?)
@@ -118,7 +120,10 @@ pub fn validate_decrypted_database(
             limits.max_custom_data_items_per_node,
             |actual, limit| KdbxPostDecryptError::TooManyCustomDataItems { actual, limit },
         )?;
-        let history_count = entry.history.as_ref().map_or(0, |history| history.get_entries().len());
+        let history_count = entry
+            .history
+            .as_ref()
+            .map_or(0, |history| history.get_entries().len());
         enforce_count(
             history_count,
             limits.max_history_entries_per_entry,
@@ -155,7 +160,11 @@ pub fn validate_decrypted_database(
     Ok(())
 }
 
-fn enforce_count<E>(actual: usize, limit: usize, error: impl FnOnce(usize, usize) -> E) -> Result<(), E> {
+fn enforce_count<E>(
+    actual: usize,
+    limit: usize,
+    error: impl FnOnce(usize, usize) -> E,
+) -> Result<(), E> {
     if actual > limit {
         Err(error(actual, limit))
     } else {
@@ -195,25 +204,30 @@ mod tests {
         };
         assert_eq!(
             validate_decrypted_database(&database, limits),
-            Err(KdbxPostDecryptError::GroupDepthExceeded { actual: 4, limit: 3 })
+            Err(KdbxPostDecryptError::GroupDepthExceeded {
+                actual: 4,
+                limit: 3
+            })
         );
     }
 
     #[test]
     fn rejects_oversized_field_without_exposing_value() {
         let mut database = Database::new();
-        database
-            .root_mut()
-            .add_entry()
-            .fields
-            .insert("Password".to_owned(), Value::protected("secret-value".to_owned()));
+        database.root_mut().add_entry().fields.insert(
+            "Password".to_owned(),
+            Value::protected("secret-value".to_owned()),
+        );
         let limits = KdbxPostDecryptLimits {
             max_field_bytes: 10,
             ..KdbxPostDecryptLimits::default()
         };
         assert_eq!(
             validate_decrypted_database(&database, limits),
-            Err(KdbxPostDecryptError::FieldTooLarge { actual: 20, limit: 10 })
+            Err(KdbxPostDecryptError::FieldTooLarge {
+                actual: 20,
+                limit: 10
+            })
         );
     }
 
@@ -230,7 +244,10 @@ mod tests {
         };
         assert_eq!(
             validate_decrypted_database(&database, limits),
-            Err(KdbxPostDecryptError::AttachmentTooLarge { actual: 9, limit: 8 })
+            Err(KdbxPostDecryptError::AttachmentTooLarge {
+                actual: 9,
+                limit: 8
+            })
         );
     }
 }
