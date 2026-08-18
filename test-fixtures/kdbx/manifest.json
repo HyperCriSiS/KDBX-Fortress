@@ -73,6 +73,50 @@
       }
     },
     {
+      "file": "kdbx4-attachments-custom-data.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "bdf3cd9d5362a42a00d6c940cfe3ee1041d0854210dde3bc9be078e6787dcc15",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "kdf": {
+        "name": "Argon2id",
+        "iterations": 2,
+        "memory_bytes": 65536,
+        "parallelism": 1,
+        "version": 19
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "deterministic KDBX4 read-compatibility fixture covering binary-pool attachments and CustomData at database/group/entry levels",
+      "expected": {
+        "group": "Synthetic",
+        "title": "Example Login",
+        "database_custom_data": {
+          "name": "FortressDatabaseCustom",
+          "value": "database-custom-value"
+        },
+        "group_custom_data": {
+          "name": "FortressGroupCustom",
+          "value": "group-custom-value"
+        },
+        "entry_custom_data": {
+          "name": "FortressEntryCustom",
+          "value": "entry-custom-value"
+        },
+        "attachments": [
+          {
+            "name": "fortress-note.txt",
+            "protected": false,
+            "sha256": "ba84db3eae910c57f13914cac1601fe48adcbdc04f9952c8a954b5e20d3b766c"
+          },
+          {
+            "name": "protected-secret.bin",
+            "protected": true,
+            "sha256": "7cb4099794fd4c921a7ba238b8d0fd44034a028592efbbc356cf34d9bc39cf45"
+          }
+        ]
+      }
+    },
+    {
       "file": "kdbx4-argon2id-chacha20.kdbx.b64",
       "encoding": "base64",
       "sha256": "86f1300867f7478aeb774d6d27eb52ee0346559066f39b9a890e1f2a8deb570b",
