@@ -1,6 +1,6 @@
 # Rust KDBX engine evaluation
 
-Status: Phase 0 decision — initial engine selected for read integration; write support remains gated.
+Status: Phase 0 decision record. Reassess before the first public release.
 
 ## Decision
 
@@ -24,30 +24,26 @@ The current `keepass-rs` line provides the strongest fit among the reviewed Rust
 
 Observed upstream support includes:
 
-- KDB, KDBX3 and KDBX4 parsing;
+- KDBX 3 and KDBX 4 reading;
 - AES-KDF, Argon2d and Argon2id;
-- AES-256, ChaCha20 and Twofish outer-cipher handling;
-- Salsa20 and ChaCha20 protected-value streams;
-- password and key-file composite keys;
-- attachments/binary pools;
-- entry/group/database custom data;
-- protected and unprotected custom fields;
-- KDBX 4.1 metadata/features;
-- malformed-file tests;
-- KDBX4 save/round-trip tests;
-- generated-database checks with KeePass/KPScript and KeePassXC CLI.
+- AES-256 and ChaCha20 outer encryption;
+- Salsa20/ChaCha20 protected inner values;
+- compression;
+- binary attachments;
+- common KDBX metadata;
+- keyfiles and challenge-response key material.
 
-The upstream project is actively maintained. This is important, but maintenance activity is not treated as a security proof.
+Its parser is also substantially more structured than using a C++/JNI KeePass port as the primary engine.
 
-## Read-first integration
+## Validation already performed
 
-Fortress deliberately starts with **read-only use** of the engine.
+The pinned engine is now exercised through project-owned deterministic fixtures and executable Rust tests rather than being accepted solely from API inspection.
 
-The first integration gate is executable parsing of project-owned deterministic fixtures. The engine is pinned in `rust/vault-core/Cargo.toml`, and the Rust compatibility tests verify:
+Current verified read behavior includes:
 
-- a project-generated KDBX 3.1 / AES-KDF / AES-256-CBC fixture opens, reports the expected KDF/cipher configuration and preserves a Salsa20-protected password plus a custom field;
-- the basic KDBX4 fixture opens, reports Argon2d plus AES-256-CBC and exposes the expected credential fields;
-- a deterministic KDBX4 fixture using Argon2id plus AES-256-CBC opens and exposes the expected credential fields;
+- a deterministic KDBX 3.1 AES-KDF/AES-256-CBC fixture opens and exposes the expected title, username, password, URL, notes and custom-field values;
+- a deterministic KDBX4 Argon2d/AES-256-CBC fixture opens and exposes expected protected/unprotected fields;
+- a deterministic KDBX4 Argon2id/AES-256-CBC fixture opens and exposes the expected credential fields;
 - a deterministic KDBX4 fixture using Argon2id plus ChaCha20 outer encryption opens and exposes the expected credential fields;
 - a deterministic KDBX4 attachment/custom-data fixture preserves two binary-pool attachments, including protected/unprotected state and exact bytes, and preserves `CustomData` at database, group and entry levels;
 - a deterministic KDBX4 composite-key fixture opens only with the required password plus the exact 32-byte raw keyfile; missing/wrong password and missing/wrong keyfile combinations are rejected;
@@ -74,9 +70,9 @@ Therefore Fortress will not enable `save_kdbx4` in production until its own inde
 - attachments and binary pools;
 - icons/custom icons;
 - tags and ordering;
-- timestamps/history/deleted objects;
-- KDBX 4.1 fields;
-- databases written by reference KeePass implementations.
+- history and deleted objects;
+- KDF/cipher settings;
+- unknown/custom metadata where preservation is expected.
 
 For KDBX3 inputs, the eventual product behavior must be explicit. Fortress must not silently rewrite or upgrade a KDBX3 database merely because the selected engine only writes KDBX4.
 
@@ -93,7 +89,9 @@ Before attacker-controlled expensive work, Fortress must enforce explicit resour
 - attachment/binary sizes and aggregate decoded data;
 - entry/group/history counts where they can cause pathological allocation or traversal.
 
-The reviewed Argon2 path consumes KDF values supplied by the database and does not constitute the Fortress budget policy by itself. If the public upstream API cannot enforce the required limits before expensive work, Fortress will either contribute the necessary hooks upstream or carry a minimal reviewed hardening patch/fork. Removing the resource limits is not an acceptable workaround.
+The first Fortress-owned pre-decrypt gate is now implemented outside `keepass-rs`: it bounds encrypted input size, outer-header and KDF-dictionary scanning, AES-KDF rounds, Argon2 memory/iterations/parallelism and a checked memory-by-iteration work budget before the selected engine is invoked. It returns typed Fortress-owned errors and does not require credentials or decrypted payload access. The materialized KDBX3, Argon2d and Argon2id fixtures plus targeted excessive/malformed cases pass this gate in Foundation CI, including required Android Rust target checks.
+
+This does **not** complete the resource-budget requirement. Decompression/expansion limits and post-decrypt XML/structure/attachment/count limits remain mandatory before production open is exposed. If the public upstream API cannot enforce those remaining limits early enough, Fortress will either contribute the necessary hooks upstream or carry a minimal reviewed hardening patch/fork. Removing the resource limits is not an acceptable workaround.
 
 ## Dependency boundary
 
@@ -109,21 +107,23 @@ The public Vault Core surface continues to use:
 
 This lets the engine be replaced or forked later without changing Android-facing contracts.
 
-## Validation oracles
+## Take / reject / borrow
 
-The selected engine must never validate itself as the only oracle.
+### Use `keepass-rs` as an internal parser/crypto dependency
 
-Independent validation will include project-generated fixtures plus reference tools/implementations such as KeePass and KeePassXC. `keepass-ng` is not counted as an independent oracle because of its shared lineage with `keepass-rs`.
+Accepted, with the constraints in this document.
 
-## Rejected alternatives
+### Enable its write feature immediately
 
-### Adopt `keepass-ng` instead
+Rejected. `save_kdbx4` remains disabled until the independent round-trip gate is complete.
 
-Rejected as the primary engine because it is from the same code family and does not provide meaningful implementation diversity. It remains useful for issue/history comparison.
+### Expose `keepass` crate types through JNI
 
-### Build a new KDBX implementation from low-level crypto crates
+Rejected. The crate remains hidden behind Fortress-owned handles and DTOs.
 
-Rejected for the initial product. Reimplementing container parsing, KDF handling, protected streams, XML mapping, binary pools, key files and format-version edge cases would create a substantially larger security and interoperability surface without a demonstrated benefit.
+### Treat `keepass-ng` as an independent oracle
+
+Rejected. It is too closely related to the selected engine for independent compatibility validation.
 
 ### Copy OneKeePass's database core
 
@@ -137,7 +137,9 @@ Rejected. OneKeePass is a learning source only. Fortress keeps its own narrowly 
 4. [x] Project-generated KDBX4 Argon2id/AES-256-CBC fixture and read test pass in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 5. [x] Project-generated KDBX4 binary-pool attachment and database/group/entry `CustomData` fixture passes exact read-preservation tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 6. [x] Project-generated KDBX4 password + raw-32-byte-keyfile composite-key fixture passes positive/negative credential tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
-7. [ ] Add resource-budget enforcement before production open/decrypt is exposed to Android.
+7. [ ] Complete resource-budget enforcement before production open/decrypt is exposed to Android.
+   - [x] Fortress-owned pre-decrypt input/outer-header/KDF gate with typed failures, AES/Argon2 ceilings and overflow-safe combined-work checks.
+   - [ ] Decompression/expansion and post-decrypt structure/attachment/count ceilings.
 8. Keep the engine behind an internal adapter/handle boundary.
 9. Enable write support only after independent round-trip and reference-tool validation.
 10. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.

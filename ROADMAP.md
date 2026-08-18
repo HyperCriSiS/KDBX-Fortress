@@ -1,10 +1,8 @@
 # KDBX Fortress Roadmap
 
-This file is the authoritative source of truth for project progress. A task is marked complete only when the repository state or documented project context proves it.
+This file is the **single authoritative roadmap and status source** for the repository.
 
-## Project goal
-
-Build a security-first offline Android password manager that treats interoperable `.kdbx` vaults as the only source of truth, keeps cryptographic/database processing inside a Rust boundary, and exposes it to Kotlin through a minimal, auditable JNI/C ABI. The application should reach practical KeePass-class usability while preserving KDBX interoperability and avoiding a proprietary vault format or plaintext bypass.
+Other documents under `docs/`, including research notes, ADRs, compatibility matrices, threat models and API contracts, may explain or constrain work, but they do not replace the phase/status decisions recorded here. If another document conflicts with this file, reconcile the documents deliberately before implementation continues.
 
 The acceptance criteria and scope in this file are normative unless changed deliberately through a reviewed roadmap update.
 
@@ -22,8 +20,6 @@ Repository state verified on `main` at `8f9f622fcd8b4e1ac98a6a1b7f982f9acfdd9966
 - `main` is protected; recent work uses short-lived feature/test branches and pull requests before integration.
 - There are currently no open repository issues and no published releases.
 - There is not yet a production Android application module, production vault-read JNI API, write path, Autofill implementation or release artifact.
-
-Known engine constraints remain explicit: the pinned engine is currently used for read validation, not as an unconditional production/write commitment. KDBX feature/version coverage, owned secret buffers and unsupported combinations must be contained by Fortress-owned adapters, limits and validation gates before production use.
 
 ## Phase 0 — Prove the KDBX/core approach
 
@@ -44,6 +40,12 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
   - [x] Add executable read-compatibility tests for the currently materialized positive fixtures and malformed-header/signature/credential negative cases.
   - [ ] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.
   - [ ] Enforce explicit Fortress-owned resource limits **before production parsing/decryption**: input size, Argon2 memory/time/parallelism policy, recursion/depth, entry/field/attachment counts and sizes, and decompression ceilings. Rejections must be typed and safe.
+    - [x] Add a Fortress-owned pre-decrypt preflight that checks the KDBX signature/version plus bounded outer-header/KDF metadata without credentials or decrypted payload access.
+    - [x] Expose an input-size gate usable before full-file allocation and bound outer-header/KDF-dictionary scanning.
+    - [x] Enforce KDBX3/KDBX4 AES-KDF round ceilings and KDBX4 Argon2 memory/iterations/parallelism plus checked memory-by-iteration work ceilings before the selected KDBX engine is invoked.
+    - [x] Return typed Fortress-owned rejection reasons for malformed/unsupported/excessive preflight inputs; verified against the materialized KDBX3, Argon2d and Argon2id fixtures plus targeted negative cases.
+    - [ ] Enforce remaining post-decrypt structural budgets: recursion/XML depth and element counts, entry/group/history counts, field/attachment sizes and aggregate decoded data.
+    - [ ] Enforce compressed/decompressed payload ceilings and expansion-ratio limits before unbounded decompression/allocation is possible.
   - [ ] Validate the chosen engine/adapter against the full accepted corpus with no panics, no unbounded allocation and no format regressions.
 - [ ] Define the stable Rust handle/API model and Kotlin wrapper while preserving the invariant that decrypted vault state remains inside Rust.
 - [ ] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
@@ -69,65 +71,92 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
 - [ ] Implement controlled clipboard copy with timeout/clear behavior and sensitive-content handling.
 - [ ] Implement configurable auto-lock and explicit lock.
 - [ ] Lock/clear sensitive state correctly across backgrounding, process/lifecycle changes and task removal.
-- [ ] Sanitize crashes/logging so secrets, credentials and decrypted field values cannot leak.
-- [ ] Add Android instrumentation/E2E coverage for open, browse, search, copy, lock and lifecycle behavior.
+- [ ] Add screenshot/recents protection for sensitive screens while keeping accessibility trade-offs explicit.
+- [ ] Add Android lifecycle/instrumentation tests for lock/invalidation and sensitive-screen behavior.
 
-**Phase 1 exit:** a usable read-only Android password manager opens supported KDBX files, browses/searches entries and locks safely without moving raw vault state into Kotlin.
+**Phase 1 exit:** a user can select and unlock a supported local KDBX file, browse/search entries and intentionally retrieve/copy a secret without Autofill, while lifecycle/lock invariants remain intact.
 
-## Phase 2 — Safe vault editing and persistence
+## Phase 2 — Safe local editing and persistence
 
-- [ ] Expose editing through Rust-owned handles/operations rather than mutable duplicate Kotlin models.
-- [ ] Create/edit/delete groups and entries.
-- [ ] Support standard/custom fields, URLs and password generation.
-- [ ] Preserve history, recycle-bin semantics and attachments required for interoperable KDBX editing.
-- [ ] Define a deterministic ownership/memory model for edits and sensitive temporary values.
-- [ ] Implement atomic save/replace through SAF-compatible storage handling.
-- [ ] Detect external file conflicts and prevent silent overwrite/data loss.
-- [ ] Prove round-trip preservation across supported KDBX variants and metadata.
-- [ ] Implement composite-key/key-file lifecycle and memory hygiene for save operations.
-- [ ] Add integration fixtures proving open → modify → save → reopen through Fortress and independent reference tools.
+- [ ] Enable create/save only after the Phase 0 round-trip gate is complete.
+- [ ] Implement create/edit/delete/move flows for supported groups and entries.
+- [ ] Preserve supported custom fields, protected values, attachments, tags, icons/custom data and ordering semantics covered by the compatibility matrix.
+- [ ] Implement SAF-backed atomic save/replace with backup/recovery behavior appropriate to provider capabilities.
+- [ ] Detect external file changes/conflicts before overwriting.
+- [ ] Implement crash-safe save failure handling and corruption diagnostics.
+- [ ] Add database backup/restore and safe export policy without exposing plaintext by default.
+- [ ] Keep KDF/cipher settings explicit and never silently weaken database security.
+- [ ] Add deterministic read-edit-write-reopen interoperability tests with independent reference validation.
 
-**Phase 2 exit:** supported KDBX vaults can be edited and persisted atomically without semantic loss.
+**Phase 2 exit:** supported vaults can be edited and saved without silent semantic loss, with conflict/recovery behavior tested.
 
-## Phase 3 — Android Autofill framework
+## Phase 3 — Android Autofill and Credential Manager
 
-- [ ] Implement `AutofillService` with a minimal-permission design.
-- [ ] Parse application/web identity defensively and normalize matching inputs.
-- [ ] Define deterministic URL/package/domain matching and ranking rules.
-- [ ] Handle locked vaults by prompting for the normal unlock path rather than caching plaintext credentials.
-- [ ] Provide fast search/selection for ambiguous matches.
-- [ ] Return authenticated Autofill datasets/results without leaking unrelated entries.
-- [ ] Add denylist/configuration controls for sites/apps where Autofill must not operate.
-- [ ] Add security tests for spoofing, cross-app/domain confusion, stale sessions and unintended disclosure.
-- [ ] Add instrumentation tests across representative browser and native-app Autofill flows.
+Goal: make credential filling reliable through official Android mechanisms without an Accessibility-Service password-manager fallback.
 
-**Phase 3 exit:** Autofill is reliable, deterministic and privacy-preserving across supported Android/browser cases.
+### Autofill inputs
 
-## Phase 4 — Advanced credential UX and field actions
+- [ ] Implement Android `AutofillService` around deterministic app/browser/WebView fixtures and real-device cases.
+- [ ] Implement Credential Manager provider integration for supported Android versions and credential types.
+- [ ] Normalize AutofillService and Credential Manager requests into one shared target representation rather than duplicating matching logic.
 
-- [ ] Add TOTP/HOTP support based on interoperable entry metadata.
-- [ ] Implement correct formatting, copy and expiry/countdown behavior for OTP values.
-- [ ] Make an explicit passkey/WebAuthn strategy decision before implementing passkey write support.
-- [ ] Add field-specific actions for username, password, URL, notes, custom fields and OTP.
-- [ ] Add safe URL/app/browser launch handling.
-- [ ] Add a custom keyboard only if a documented Android/Autofill gap justifies its security and maintenance cost.
-- [ ] Define per-field copy/reveal policies and timeout behavior.
-- [ ] Cover special/protected/custom field behavior in the UX state matrix.
-- [ ] Add integration tests for advanced credential actions.
+### Target/context resolution
 
-**Phase 4 exit:** advanced credential actions remain interoperable, deliberate and covered by the same lock/secret-handling model.
+- [ ] Resolve package/application identity, browser identity, component/activity, field semantics/hints/input types and exposed web origin/domain into a normalized non-secret target.
+- [ ] Treat verified app↔website association signals separately from user-approved explicit associations.
+- [ ] Define exact-origin, exact-host, registrable-domain/subdomain and multiple-entry-URL semantics before automatic suggestions are allowed.
+- [ ] Reject or require explicit user selection when a trustworthy origin/domain cannot be established; never guess credentials into an unsafe target.
+- [ ] Test malicious/unrelated app-origin claims and domain mismatch/phishing scenarios explicitly.
 
-## Phase 5 — Hardening, recovery and import/export
+### Credential matching and presentation
 
-- [ ] Define tested Argon2 presets/benchmarks and user-visible handling for vaults exceeding safe device budgets.
-- [ ] Add biometric/device-credential wrapping only for a narrowly scoped unlock secret and document its threat model.
-- [ ] Define emergency unlock/recovery behavior without plaintext vault dumps.
-- [ ] Add explicit read-only/recovery paths for partially unsupported or damaged vaults where safe.
-- [ ] Add explicit import paths for selected external formats such as CSV/XML only where semantics can be mapped safely.
-- [ ] Add export flows with prominent plaintext-risk warnings and deliberate confirmation.
-- [ ] Guarantee temporary-file cleanup for import/export/recovery operations.
-- [ ] Define backup/restore behavior that does not create an undocumented second vault format.
-- [ ] Review privacy-sensitive logging/crash-reporting behavior and keep telemetry opt-in or absent by default.
+- [ ] Route normalized target context through a single shared matcher/ranker, independent of Android AutofillService vs Credential Manager transport.
+- [ ] Rank exact origin/domain and verified association ahead of controlled package/user-approved associations; keep heuristics conservative and explainable.
+- [ ] Support multiple accounts for one target, no-match states, manual selection and search fallback.
+- [ ] Support KDBX entries with multiple URL associations without silently creating or rewriting mappings.
+- [ ] Retrieve/decrypt only the selected secret as late as possible; do not materialize the whole vault in Kotlin.
+
+### Form and lifecycle coverage
+
+- [ ] Cover username+password, password-only, username-only, password-change old/new/confirmation and OTP forms.
+- [ ] Cover multi-step login flows where username and password appear on separate screens.
+- [ ] Cover absent/incorrect hints, dynamic/delayed fields, custom views and Jetpack Compose.
+- [ ] Cover native Android Views, Android System WebView and browser-origin cases explicitly.
+- [ ] Cover iframe/embedded login cases to the extent Android/browser APIs expose trustworthy context.
+- [ ] Cover locked-vault, no-match, relock-mid-flow, backgrounding, display-off, inactivity, process restart and Activity recreation scenarios.
+- [ ] Cover save/update credential flows separately from fill flows.
+- [ ] Add TOTP Autofill only after vault secret handling and matching boundaries are stable.
+
+### Browser/system compatibility and regression matrix
+
+- [ ] Maintain explicit real-device/browser coverage for Chrome/Chromium, Firefox, Waterfox Android, Brave, Vanadium, Vivaldi and Android System WebView where installable/testable.
+- [ ] Track Android-version/OEM differences where platform behavior materially differs.
+- [ ] Add first-class regression cases derived from known KeePassDX/KeePass2Android failure modes rather than treating them as anecdotal bugs.
+- [ ] Use Android Autofill compatibility mode only as a measured allowlisted adapter for specific broken clients, never as a universal fallback.
+- [ ] Do not add an Accessibility Service as the primary password-manager mechanism.
+
+**Phase 3 exit:** Autofill/Credential Manager works reliably across the documented app/browser/WebView matrix, unsafe origins fail closed, and manual fallback remains available when platform context is insufficient.
+
+## Phase 4 — Hardening, quick unlock and resilience
+
+- [ ] Add optional Android Keystore/biometric quick-unlock only as a convenience layer; the KDBX credential remains the canonical vault credential.
+- [ ] Define quick-unlock enrollment, invalidation, biometric-change and recovery behavior explicitly.
+- [ ] Ensure quick-unlock material never becomes a cloud recovery secret or silently changes the KDBX credential.
+- [ ] Harden clipboard/notifications/recents/screenshots/logging and crash reporting against secret leakage.
+- [ ] Add backup/recovery policy for local database files and metadata.
+- [ ] Add process-death/reboot/reinstall/restore tests for lock and quick-unlock behavior.
+- [ ] Add robust diagnostics for corrupt/unsupported vaults without exposing protected content.
+
+**Phase 4 exit:** convenience unlock and recovery behavior do not weaken the core KDBX trust model, and sensitive Android surfaces are explicitly hardened.
+
+## Phase 5 — Security, compatibility and performance validation
+
+- [ ] Benchmark KDF/open/search/save operations on representative Android hardware and document expected ranges.
+- [ ] Tune **new-database** Argon2id defaults against an unlock-latency target and device memory rather than copying a fixed universal preset.
+- [ ] Preserve existing database KDF/cipher choices by default; any suggested upgrade/downgrade must be explicit and user-approved.
+- [ ] Maintain a compatibility matrix covering supported Android versions, OEMs, browsers, WebViews and KDBX variants.
+- [ ] Run full representative KDBX regression corpus, including malformed/corrupt/pathological inputs.
+- [ ] Validate memory/resource ceilings under hostile inputs and low-memory conditions.
 - [ ] Harden dependency, repository relationship and version pinning policies before release.
 - [ ] Perform focused security review of JNI, SAF, clipboard, Autofill, backup and recovery boundaries.
 - [ ] Add fuzzing/property testing for parser/adapters and malformed-input handling.
@@ -147,48 +176,49 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
 - [ ] Establish dependency/security-update cadence.
 - [ ] Document a release/rollback runbook.
 
-**Phase 6 exit:** a signed, documented release can be reproduced, audited, upgraded and rolled back using the defined process.
+**Phase 6 exit:** signed prerelease/release artifacts are reproducible/traceable, documented and ready for real-world testing without bypassing security gates.
 
 ## Release gate
 
-Every item below must be green for a public release:
+A public release is allowed only when all applicable items below are complete:
 
-- [ ] Android lint/static checks.
-- [ ] Kotlin/JVM unit tests.
-- [ ] Rust unit/integration tests.
-- [ ] Android instrumentation tests.
-- [ ] Deterministic KDBX fixture validation.
-- [ ] KDBX round-trip/reference-tool interoperability suite.
-- [ ] Autofill E2E suite.
-- [ ] Native-library target/checksum/export verification.
-- [ ] Dependency review/audit.
-- [ ] License/vulnerability scan.
-- [ ] CodeQL/secret-scanning review with no unresolved release-blocking findings.
-- [ ] Manual security/lifecycle checklist covering auto-lock, clipboard, backgrounding, temporary data, backup and recovery.
+### Build and verification
 
-**Rule:** any failing release-gate item blocks release.
+- [ ] Release builds succeed from a documented clean environment.
+- [ ] Required Android ABI/native artifacts are present and verified.
+- [ ] Foundation/Android tests and security checks are green on the release commit.
+- [ ] Reproducibility expectations and known nondeterminism are documented.
 
-## Explicit de-scoping and design principles
+### Security
 
-- [ ] Do not introduce a proprietary replacement for KDBX as the normal vault format.
-- [ ] Do not keep long-lived raw passwords or decrypted KDBX/database state in Kotlin.
-- [ ] Do not maintain an independent duplicate database model outside the Rust vault core.
-- [ ] Do not add a sync engine before local atomic persistence/conflict handling is proven.
-- [ ] Do not provide a plaintext emergency-vault dump as a recovery feature.
-- [ ] Do not add a custom keyboard unless a documented capability gap justifies it.
-- [ ] Do not add passkey write support until a deliberate compatibility/security decision is recorded.
+- [ ] Threat model and security invariants match the shipped implementation.
+- [ ] JNI/FFI unsafe code has focused review and tests.
+- [ ] Secrets are not logged, persisted or exposed through Android surfaces unintentionally.
+- [ ] Resource/DoS limits are enforced for hostile KDBX inputs.
+- [ ] Dependency/license/security review is current for the exact shipped versions.
+- [ ] Secret scanning/push protection and static analysis are active and clean.
 
-These are standing constraints rather than implementation-completion claims; they remain unchecked until the release architecture proves continued compliance.
+### Compatibility and data safety
 
-## Branch and release policy
+- [ ] Supported KDBX variants are documented and exercised by deterministic fixtures.
+- [ ] Reference-tool round-trip tests prove no silent semantic loss for supported write operations.
+- [ ] KDBX3 behavior is explicit; no silent incompatible upgrade/rewrite occurs.
+- [ ] Autofill/browser/WebView compatibility matrix is documented for the release.
+- [ ] Recovery/backup behavior is tested for interrupted/failed writes.
 
-Current verified development workflow:
+### Packaging and maintenance
 
-- [x] Keep `main` protected and integrate recent implementation/test changes through short-lived branches and pull requests.
-- [x] Run Foundation and CodeQL/security checks on integrated `main` changes.
+- [ ] Version/changelog/tag/release metadata are consistent.
+- [ ] Signing/release-key process is documented.
+- [ ] Store/F-Droid privacy/permission metadata matches the binary.
+- [ ] Rollback and emergency release process is documented.
+- [ ] Dependency/security-update cadence is established.
 
-Before production release:
+## Branch / PR / release policy
 
+- [x] Protect `main` against force pushes and deletion.
+- [x] Use short-lived topic branches and pull requests for non-trivial implementation work.
+- [x] Require Foundation and CodeQL/security checks before merging production-relevant changes.
 - [ ] Define the long-term release-branch/tag policy.
 - [ ] Define versioning and changelog rules.
 - [ ] Define required PR checks/review policy for production releases.
@@ -199,14 +229,14 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Production KDBX open/decrypt is blocked on Fortress-owned resource-budget enforcement.** The parser must reject excessive input/KDF/decompression/structure requests before they can cause unbounded resource use.
+1. **Production KDBX open/decrypt remains blocked on completion of Fortress-owned resource-budget enforcement.** Input size and KDF/outer-header abuse are now gated before the selected engine; decompression and post-decrypt structure/attachment ceilings still must be enforced before production open is exposed.
 2. **Write support is blocked on round-trip plus independent reference-tool validation.** Current read compatibility is not sufficient evidence for safe KDBX persistence.
 3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Implement and test Fortress-owned pre-decrypt/resource-budget enforcement for KDBX inputs and KDF parameters, with typed safe rejection paths.
+1. [ ] Complete the remaining Fortress-owned resource-budget gate with post-decrypt structure/attachment limits and decompression ceilings; the pre-decrypt input/KDF preflight is implemented and CI-verified.
 2. [ ] Add the round-trip/interoperability harness and independent reference-tool preservation checks required before write support.
 3. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics or unbounded allocation.
 4. [ ] Define the stable Rust handle/JNI API and zeroization strategy, then expose bounded read-only vault operations to Android.
