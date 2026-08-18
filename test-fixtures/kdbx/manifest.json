@@ -50,6 +50,29 @@
       "outer_cipher": "AES-256-CBC"
     },
     {
+      "file": "kdbx4-argon2id-aes.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "a7744ab17d5419c2f5cc613b481f3e94168fcd55a487d6bd4b65b9e1ba351aa7",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "kdf": {
+        "name": "Argon2id",
+        "iterations": 2,
+        "memory_bytes": 65536,
+        "parallelism": 1,
+        "version": 19
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and AES-256-CBC outer encryption",
+      "expected": {
+        "group": "Synthetic",
+        "title": "Example Login",
+        "username": "fixture-user",
+        "password": "fixture-secret",
+        "url": "https://example.test"
+      }
+    },
+    {
       "file": "kdbx4-argon2id-chacha20.kdbx.b64",
       "encoding": "base64",
       "sha256": "86f1300867f7478aeb774d6d27eb52ee0346559066f39b9a890e1f2a8deb570b",
