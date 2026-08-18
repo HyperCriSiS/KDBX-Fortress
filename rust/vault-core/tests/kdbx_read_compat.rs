@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::io::Error as IoError;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use keepass::{
-    config::{KdfConfig, OuterCipherConfig},
     Database, DatabaseKey,
+    config::{KdfConfig, OuterCipherConfig},
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
@@ -26,8 +26,8 @@ fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
 }
 
 #[test]
-fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields(
-) -> Result<(), Box<dyn Error>> {
+fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields()
+-> Result<(), Box<dyn Error>> {
     let db = open_base64_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx3-aes-aeskdf-basic.kdbx.b64"
     ))?;
@@ -109,9 +109,7 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
 
 #[test]
 fn rejects_truncated_header_fixture() {
-    let mut source = &include_bytes!(
-        "../../../test-fixtures/kdbx/truncated-header-kdbx4.kdbx"
-    )[..];
+    let mut source = &include_bytes!("../../../test-fixtures/kdbx/truncated-header-kdbx4.kdbx")[..];
 
     let result = Database::open(
         &mut source,
@@ -123,9 +121,7 @@ fn rejects_truncated_header_fixture() {
 
 #[test]
 fn rejects_invalid_signature_fixture() {
-    let mut source = &include_bytes!(
-        "../../../test-fixtures/kdbx/bad-signature-kdbx4.kdbx"
-    )[..];
+    let mut source = &include_bytes!("../../../test-fixtures/kdbx/bad-signature-kdbx4.kdbx")[..];
 
     let result = Database::open(
         &mut source,
