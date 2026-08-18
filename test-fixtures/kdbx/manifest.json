@@ -7,25 +7,11 @@
       "sha256": "7941fe5a33adad0ec4eae56f0586b1b77b26550444368401f2fbb144ce47cf2c",
       "password": "fixture-password",
       "format": "KDBX3",
-      "kdf": {
-        "name": "AES-KDF",
-        "rounds": 6000
-      },
+      "kdf": {"name": "AES-KDF", "rounds": 6000},
       "outer_cipher": "AES-256-CBC",
       "inner_cipher": "Salsa20",
       "purpose": "deterministic KDBX 3.1 AES-KDF read-compatibility fixture with a protected password and custom field",
-      "expected": {
-        "group": "Synthetic KDBX3",
-        "title": "Legacy AES Login",
-        "username": "kdbx3-user",
-        "password": "kdbx3-fixture-secret",
-        "url": "https://legacy.example.test",
-        "notes": "KDBX3 AES-KDF synthetic fixture",
-        "custom_field": {
-          "name": "FortressCustom",
-          "value": "custom-value"
-        }
-      }
+      "expected": {"group": "Synthetic KDBX3", "title": "Legacy AES Login", "username": "kdbx3-user", "password": "kdbx3-fixture-secret", "url": "https://legacy.example.test", "notes": "KDBX3 AES-KDF synthetic fixture", "custom_field": {"name": "FortressCustom", "value": "custom-value"}}
     },
     {
       "file": "basic-kdbx4.kdbx",
@@ -33,20 +19,8 @@
       "password": "fixture-password",
       "format": "KDBX4",
       "purpose": "minimal password-only KDBX4 interoperability smoke fixture covering Argon2d and AES-256-CBC",
-      "expected": {
-        "group": "Synthetic",
-        "title": "Example Login",
-        "username": "fixture-user",
-        "password": "fixture-secret",
-        "url": "https://example.test"
-      },
-      "kdf": {
-        "name": "Argon2d",
-        "iterations": 14,
-        "memory_bytes": 67108864,
-        "parallelism": 2,
-        "version": 19
-      },
+      "expected": {"group": "Synthetic", "title": "Example Login", "username": "fixture-user", "password": "fixture-secret", "url": "https://example.test"},
+      "kdf": {"name": "Argon2d", "iterations": 14, "memory_bytes": 67108864, "parallelism": 2, "version": 19},
       "outer_cipher": "AES-256-CBC"
     },
     {
@@ -55,22 +29,10 @@
       "sha256": "a7744ab17d5419c2f5cc613b481f3e94168fcd55a487d6bd4b65b9e1ba351aa7",
       "password": "fixture-password",
       "format": "KDBX4",
-      "kdf": {
-        "name": "Argon2id",
-        "iterations": 2,
-        "memory_bytes": 65536,
-        "parallelism": 1,
-        "version": 19
-      },
+      "kdf": {"name": "Argon2id", "iterations": 2, "memory_bytes": 65536, "parallelism": 1, "version": 19},
       "outer_cipher": "AES-256-CBC",
       "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and AES-256-CBC outer encryption",
-      "expected": {
-        "group": "Synthetic",
-        "title": "Example Login",
-        "username": "fixture-user",
-        "password": "fixture-secret",
-        "url": "https://example.test"
-      }
+      "expected": {"group": "Synthetic", "title": "Example Login", "username": "fixture-user", "password": "fixture-secret", "url": "https://example.test"}
     },
     {
       "file": "kdbx4-attachments-custom-data.kdbx.b64",
@@ -78,43 +40,22 @@
       "sha256": "bdf3cd9d5362a42a00d6c940cfe3ee1041d0854210dde3bc9be078e6787dcc15",
       "password": "fixture-password",
       "format": "KDBX4",
-      "kdf": {
-        "name": "Argon2id",
-        "iterations": 2,
-        "memory_bytes": 65536,
-        "parallelism": 1,
-        "version": 19
-      },
+      "kdf": {"name": "Argon2id", "iterations": 2, "memory_bytes": 65536, "parallelism": 1, "version": 19},
       "outer_cipher": "AES-256-CBC",
       "purpose": "deterministic KDBX4 read-compatibility fixture covering binary-pool attachments and CustomData at database/group/entry levels",
-      "expected": {
-        "group": "Synthetic",
-        "title": "Example Login",
-        "database_custom_data": {
-          "name": "FortressDatabaseCustom",
-          "value": "database-custom-value"
-        },
-        "group_custom_data": {
-          "name": "FortressGroupCustom",
-          "value": "group-custom-value"
-        },
-        "entry_custom_data": {
-          "name": "FortressEntryCustom",
-          "value": "entry-custom-value"
-        },
-        "attachments": [
-          {
-            "name": "fortress-note.txt",
-            "protected": false,
-            "sha256": "ba84db3eae910c57f13914cac1601fe48adcbdc04f9952c8a954b5e20d3b766c"
-          },
-          {
-            "name": "protected-secret.bin",
-            "protected": true,
-            "sha256": "7cb4099794fd4c921a7ba238b8d0fd44034a028592efbbc356cf34d9bc39cf45"
-          }
-        ]
-      }
+      "expected": {"group": "Synthetic", "title": "Example Login", "database_custom_data": {"name": "FortressDatabaseCustom", "value": "database-custom-value"}, "group_custom_data": {"name": "FortressGroupCustom", "value": "group-custom-value"}, "entry_custom_data": {"name": "FortressEntryCustom", "value": "entry-custom-value"}, "attachments": [{"name": "fortress-note.txt", "protected": false, "sha256": "ba84db3eae910c57f13914cac1601fe48adcbdc04f9952c8a954b5e20d3b766c"}, {"name": "protected-secret.bin", "protected": true, "sha256": "7cb4099794fd4c921a7ba238b8d0fd44034a028592efbbc356cf34d9bc39cf45"}]}
+    },
+    {
+      "file": "kdbx4-composite-key-keyfile.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "396984f7d656e894ec1e42e6644a47516d19a3daf6db1c9fd80a2a5538f1f35e",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "kdf": {"name": "Argon2id", "iterations": 2, "memory_bytes": 65536, "parallelism": 1, "version": 19},
+      "outer_cipher": "AES-256-CBC",
+      "keyfile": {"file": "kdbx4-composite-key.raw32.key", "format": "raw32", "size": 32, "sha256": "3b3f1e0480af8a0e557476d376630c206959e1af1d55dd8464a04aa80a206cc1"},
+      "purpose": "deterministic KDBX4 read-compatibility fixture requiring a composite password + raw-32-byte keyfile",
+      "expected": {"group": "Synthetic", "title": "Example Login", "username": "fixture-user", "password": "fixture-secret", "url": "https://example.test"}
     },
     {
       "file": "kdbx4-argon2id-chacha20.kdbx.b64",
@@ -122,22 +63,10 @@
       "sha256": "86f1300867f7478aeb774d6d27eb52ee0346559066f39b9a890e1f2a8deb570b",
       "password": "fixture-password",
       "format": "KDBX4",
-      "kdf": {
-        "name": "Argon2id",
-        "iterations": 2,
-        "memory_bytes": 65536,
-        "parallelism": 1,
-        "version": 19
-      },
+      "kdf": {"name": "Argon2id", "iterations": 2, "memory_bytes": 65536, "parallelism": 1, "version": 19},
       "outer_cipher": "ChaCha20",
       "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and ChaCha20 outer encryption",
-      "expected": {
-        "group": "Synthetic",
-        "title": "Example Login",
-        "username": "fixture-user",
-        "password": "fixture-secret",
-        "url": "https://example.test"
-      }
+      "expected": {"group": "Synthetic", "title": "Example Login", "username": "fixture-user", "password": "fixture-secret", "url": "https://example.test"}
     },
     {
       "file": "unicode-kdbx4.kdbx",
@@ -145,28 +74,9 @@
       "password": "fixture-password",
       "format": "KDBX4",
       "purpose": "Unicode round-trip interoperability fixture",
-      "expected": {
-        "group": "Synthetisch-Üñîçødé-测试",
-        "title": "Anmeldung 🔐 – 東京",
-        "username": "nützer@example.test",
-        "password": "pässwörd-Δ-秘密",
-        "url": "https://例え.test/über",
-        "notes": "Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀"
-      }
+      "expected": {"group": "Synthetisch-Üñîçødé-测试", "title": "Anmeldung 🔐 – 東京", "username": "nützer@example.test", "password": "pässwörd-Δ-秘密", "url": "https://例え.test/über", "notes": "Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀"}
     },
-    {
-      "file": "truncated-header-kdbx4.kdbx",
-      "sha256": "06244a1e48bead1fc908998b806048cd98a0f2980cf42597fd9a8abe5091359b",
-      "format": "KDBX4",
-      "purpose": "deterministic truncated-header rejection fixture",
-      "expected_failure": "truncated_header"
-    },
-    {
-      "file": "bad-signature-kdbx4.kdbx",
-      "sha256": "3eb2d4f8a1d265b68dc982fe9de498f865007ab5ef2512575c54d831f8508ca0",
-      "format": "KDBX4",
-      "purpose": "deterministic invalid-signature rejection fixture",
-      "expected_failure": "invalid_signature"
-    }
+    {"file": "truncated-header-kdbx4.kdbx", "sha256": "06244a1e48bead1fc908998b806048cd98a0f2980cf42597fd9a8abe5091359b", "format": "KDBX4", "purpose": "deterministic truncated-header rejection fixture", "expected_failure": "truncated_header"},
+    {"file": "bad-signature-kdbx4.kdbx", "sha256": "3eb2d4f8a1d265b68dc982fe9de498f865007ab5ef2512575c54d831f8508ca0", "format": "KDBX4", "purpose": "deterministic invalid-signature rejection fixture", "expected_failure": "invalid_signature"}
   ]
 }

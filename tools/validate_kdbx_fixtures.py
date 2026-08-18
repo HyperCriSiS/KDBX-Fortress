@@ -30,4 +30,15 @@ for entry in entries:
         assert 'expected' not in entry, f'negative fixture must not declare positive expected content for {path.name}'
     else:
         assert isinstance(entry.get('expected'), dict) and entry['expected'], f'missing expected content for {path.name}'
+    keyfile = entry.get('keyfile')
+    if keyfile is not None:
+        assert isinstance(keyfile, dict), f'invalid keyfile metadata for {path.name}'
+        keyfile_path = FIXTURES / keyfile['file']
+        assert keyfile_path.is_file(), f'missing keyfile fixture: {keyfile_path}'
+        keyfile_payload = keyfile_path.read_bytes()
+        assert hashlib.sha256(keyfile_payload).hexdigest() == keyfile['sha256'], f'SHA-256 mismatch for keyfile {keyfile_path.name}'
+        assert len(keyfile_payload) == keyfile['size'], f'size mismatch for keyfile {keyfile_path.name}'
+        assert keyfile.get('format') in {'raw32'}, f'unsupported keyfile format for {keyfile_path.name}'
+        if keyfile['format'] == 'raw32':
+            assert len(keyfile_payload) == 32, f'raw32 keyfile must contain exactly 32 bytes: {keyfile_path.name}'
 print(f'validated {len(entries)} KDBX fixture(s)')
