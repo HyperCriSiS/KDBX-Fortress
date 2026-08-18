@@ -1,6 +1,6 @@
-# Vault Core API contract
+# Vault Core API Contract
 
-Status: Phase 0 design contract.
+## Purpose
 
 The Rust vault core is the sole owner of KDBX parsing, cryptographic operations and unlocked vault state. Kotlin/Android orchestrates UI and platform services through a narrow bridge. This document defines the intended semantic boundary before production KDBX implementation begins.
 
@@ -26,7 +26,7 @@ Stable identifiers mapped to KDBX UUIDs. Kotlin must not rely on list indexes as
 
 ### `VaultSummary`
 
-Non-secret summary: database name/description, root group identity, format/version/cipher/KDF summary and capability flags. No password-derived material.
+Non-secret metadata required for the UI, for example database name, root group identity and compatibility/version information.
 
 ### `EntrySummary`
 
@@ -42,9 +42,7 @@ Stable categories at minimum: invalid credentials, unsupported format/feature, c
 
 ## Pre-open resource preflight
 
-Before a future production `open_vault` invokes the selected KDBX engine, Fortress applies its own non-secret preflight to attacker-controlled KDBX bytes. The current Phase 0 gate checks encrypted input size, bounded outer-header/KDF metadata, AES-KDF rounds and Argon2 memory/iterations/parallelism plus a combined work ceiling. It does not accept credentials, derive keys, decrypt payload bytes or expose vault contents.
-
-Where Android/SAF can determine the encrypted file size before allocating a complete input buffer, the size gate is applied there first and enforced again by the Rust preflight. Any production `open_vault` implementation must run the completed Fortress resource policy before the engine can perform expensive work; post-decrypt structure and decompression limits remain part of the Phase 0 gate.
+Before a future production `open_vault` invokes the selected KDBX engine, Fortress applies a non-secret preflight for encrypted input size and outer-header/KDF resource limits. It does not accept credentials, derive keys or decrypt payload bytes. Decompression and post-decrypt structure limits remain part of the Phase 0 gate.
 
 ## Lifecycle API
 
@@ -58,7 +56,7 @@ is_handle_valid(handle) -> bool
 ```
 
 Requirements:
-- `open_vault` runs the completed Fortress resource preflight before invoking expensive engine/KDF work, then performs complete authentication/integrity validation before exposing unlocked content.
+- `open_vault` runs the completed Fortress resource policy before expensive engine/KDF work, then performs complete authentication/integrity validation before exposing unlocked content.
 - credential material is not retained longer than necessary to derive/open required keys.
 - `lock_vault` is idempotent and invalidates all future reads/mutations for that handle.
 - resource limits are explicit for hostile KDBX inputs.
