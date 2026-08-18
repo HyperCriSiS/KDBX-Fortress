@@ -1,8 +1,16 @@
 //! Platform-neutral Rust vault-core boundary.
 //!
-//! Phase 1 intentionally contains no vault parsing, cryptography, JNI, Android,
-//! persistence, or networking. This crate exists to make the trust boundary
-//! mechanically testable before feature code enters it.
+//! Phase 0 keeps production KDBX decryption, vault parsing, JNI, Android,
+//! persistence, and networking disabled. The core may inspect non-secret outer-
+//! header metadata only to enforce Fortress-owned resource limits before any
+//! expensive KDF/decrypt path is entered.
+
+mod preflight;
+
+pub use preflight::{
+    KdbxPreflightError, KdbxPreflightReport, KdbxResourceLimits, KdfField, KdfPreflight,
+    check_kdbx_input_size, preflight_kdbx,
+};
 
 /// ABI contract version exposed to future platform adapters.
 ///
