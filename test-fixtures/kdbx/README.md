@@ -21,3 +21,5 @@ python tools/validate_kdbx_fixtures.py
 `kdbx4-argon2id-aes.kdbx.b64` deterministically re-wraps the already validated synthetic KDBX4 inner payload with Argon2id and AES-256-CBC outer encryption. The manifest SHA-256 applies to the decoded KDBX bytes, and the Rust compatibility test verifies both the KDF/cipher configuration and expected credential fields.
 
 `kdbx4-argon2id-chacha20.kdbx.b64` deterministically re-wraps the already validated synthetic KDBX4 inner payload with Argon2id and ChaCha20 outer encryption. The manifest SHA-256 applies to the decoded KDBX bytes, and the Rust compatibility test verifies both the KDF/cipher configuration and expected credential fields.
+
+`kdbx4-attachments-custom-data.kdbx.b64` extends the Argon2id/AES synthetic corpus with two KDBX4 binary-pool attachments: one unprotected text attachment and one protected binary attachment. Its executable Rust test verifies exact attachment names/bytes, preservation of the protected/unprotected state, and `CustomData` at database, group and entry levels.
