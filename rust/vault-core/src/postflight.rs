@@ -71,9 +71,11 @@ pub fn validate_decrypted_database(
     enforce_count(database.num_groups(), limits.max_groups, |actual, limit| {
         KdbxPostDecryptError::TooManyGroups { actual, limit }
     })?;
-    enforce_count(database.num_entries(), limits.max_entries, |actual, limit| {
-        KdbxPostDecryptError::TooManyEntries { actual, limit }
-    })?;
+    enforce_count(
+        database.num_entries(),
+        limits.max_entries,
+        |actual, limit| KdbxPostDecryptError::TooManyEntries { actual, limit },
+    )?;
     enforce_count(
         database.num_attachments(),
         limits.max_attachments,
