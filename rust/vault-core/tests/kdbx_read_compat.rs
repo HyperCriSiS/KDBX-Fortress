@@ -41,8 +41,8 @@ fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields()
         OuterCipherConfig::AES256
     ));
 
-    let group = db
-        .root()
+    let root = db.root();
+    let group = root
         .group_by_path(&["Synthetic KDBX3"])
         .ok_or_else(|| IoError::other("Synthetic KDBX3 group must exist"))?;
     let entry = group
@@ -53,7 +53,7 @@ fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields()
     assert_eq!(entry.get_username(), Some("kdbx3-user"));
     assert_eq!(entry.get_password(), Some("kdbx3-fixture-secret"));
     assert_eq!(entry.get_url(), Some("https://legacy.example.test"));
-    assert_eq!(entry.get_notes(), Some("KDBX3 AES-KDF synthetic fixture"));
+    assert_eq!(entry.get("Notes"), Some("KDBX3 AES-KDF synthetic fixture"));
     assert_eq!(entry.get("FortressCustom"), Some("custom-value"));
 
     Ok(())
@@ -65,8 +65,8 @@ fn opens_basic_kdbx4_fixture_and_preserves_expected_fields() -> Result<(), Box<d
         "../../../test-fixtures/kdbx/basic-kdbx4.kdbx"
     ))?;
 
-    let group = db
-        .root()
+    let root = db.root();
+    let group = root
         .group_by_path(&["Synthetic"])
         .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
     let entry = group
@@ -87,8 +87,8 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
         "../../../test-fixtures/kdbx/unicode-kdbx4.kdbx"
     ))?;
 
-    let group = db
-        .root()
+    let root = db.root();
+    let group = root
         .group_by_path(&["Synthetisch-Üñîçødé-测试"])
         .ok_or_else(|| IoError::other("Unicode group must exist"))?;
     let entry = group
@@ -100,7 +100,7 @@ fn opens_unicode_kdbx4_fixture_without_text_loss() -> Result<(), Box<dyn Error>>
     assert_eq!(entry.get_password(), Some("pässwörd-Δ-秘密"));
     assert_eq!(entry.get_url(), Some("https://例え.test/über"));
     assert_eq!(
-        entry.get_notes(),
+        entry.get("Notes"),
         Some("Unicode interoperability fixture: äöü ß Ελληνικά 日本語 emoji 🚀")
     );
 
