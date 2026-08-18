@@ -17,7 +17,7 @@ for entry in entries:
         materialized = payload
     elif encoding == 'base64':
         try:
-            materialized = base64.b64decode(payload, validate=True)
+            materialized = base64.b64decode(payload.strip(), validate=True)
         except binascii.Error as exc:
             raise AssertionError(f'invalid base64 fixture encoding for {path.name}: {exc}') from exc
     else:
