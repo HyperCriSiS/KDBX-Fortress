@@ -40,6 +40,10 @@ Short-lived secret response for one explicitly requested protected value. Bridge
 
 Stable categories at minimum: invalid credentials, unsupported format/feature, corrupt input, resource limit, stale/invalid handle, not found, conflict/precondition, serialization failure and internal error. Diagnostics must not contain decrypted secrets.
 
+## Pre-open resource preflight
+
+Before a future production `open_vault` invokes the selected KDBX engine, Fortress applies a non-secret preflight for encrypted input size and outer-header/KDF resource limits. It does not accept credentials, derive keys or decrypt payload bytes. Decompression and post-decrypt structure limits remain part of the Phase 0 gate.
+
 ## Lifecycle API
 
 Conceptual API; exact language binding may differ while preserving semantics.
@@ -52,7 +56,7 @@ is_handle_valid(handle) -> bool
 ```
 
 Requirements:
-- `open_vault` performs complete authentication/integrity validation before exposing unlocked content.
+- `open_vault` runs the completed Fortress resource policy before expensive engine/KDF work, then performs complete authentication/integrity validation before exposing unlocked content.
 - credential material is not retained longer than necessary to derive/open required keys.
 - `lock_vault` is idempotent and invalidates all future reads/mutations for that handle.
 - resource limits are explicit for hostile KDBX inputs.

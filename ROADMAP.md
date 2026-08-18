@@ -44,6 +44,8 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
   - [x] Add executable read-compatibility tests for the currently materialized positive fixtures and malformed-header/signature/credential negative cases.
   - [ ] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.
   - [ ] Enforce explicit Fortress-owned resource limits **before production parsing/decryption**: input size, Argon2 memory/time/parallelism policy, recursion/depth, entry/field/attachment counts and sizes, and decompression ceilings. Rejections must be typed and safe.
+    - [x] Pre-decrypt input/outer-header/KDF preflight with typed safe failures, AES-KDF ceilings, Argon2 memory/iterations/parallelism ceilings and an overflow-safe combined-work ceiling.
+    - [ ] Post-decrypt structure/attachment/count ceilings and decompression/expansion limits.
   - [ ] Validate the chosen engine/adapter against the full accepted corpus with no panics, no unbounded allocation and no format regressions.
 - [ ] Define the stable Rust handle/API model and Kotlin wrapper while preserving the invariant that decrypted vault state remains inside Rust.
 - [ ] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
@@ -199,14 +201,14 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Production KDBX open/decrypt is blocked on Fortress-owned resource-budget enforcement.** The parser must reject excessive input/KDF/decompression/structure requests before they can cause unbounded resource use.
+1. **Production KDBX open/decrypt remains blocked on completion of Fortress-owned resource-budget enforcement.** Pre-decrypt input/KDF abuse is now gated; decompression and post-decrypt structure/attachment ceilings remain open.
 2. **Write support is blocked on round-trip plus independent reference-tool validation.** Current read compatibility is not sufficient evidence for safe KDBX persistence.
 3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Implement and test Fortress-owned pre-decrypt/resource-budget enforcement for KDBX inputs and KDF parameters, with typed safe rejection paths.
+1. [ ] Complete the remaining Fortress-owned resource-budget gate with post-decrypt structure/attachment/count ceilings and decompression/expansion limits; the pre-decrypt input/KDF gate is implemented and CI-verified.
 2. [ ] Add the round-trip/interoperability harness and independent reference-tool preservation checks required before write support.
 3. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics or unbounded allocation.
 4. [ ] Define the stable Rust handle/JNI API and zeroization strategy, then expose bounded read-only vault operations to Android.

@@ -93,7 +93,7 @@ Before attacker-controlled expensive work, Fortress must enforce explicit resour
 - attachment/binary sizes and aggregate decoded data;
 - entry/group/history counts where they can cause pathological allocation or traversal.
 
-The reviewed Argon2 path consumes KDF values supplied by the database and does not constitute the Fortress budget policy by itself. If the public upstream API cannot enforce the required limits before expensive work, Fortress will either contribute the necessary hooks upstream or carry a minimal reviewed hardening patch/fork. Removing the resource limits is not an acceptable workaround.
+The first Fortress-owned pre-decrypt gate is now implemented outside `keepass-rs`: it bounds encrypted input size, outer-header/KDF scanning, AES-KDF rounds, Argon2 memory/iterations/parallelism and an overflow-safe combined memory-by-iteration work budget before the selected engine is invoked. Decompression/expansion and post-decrypt structure/attachment/count limits remain mandatory before production open is exposed; if upstream cannot enforce those remaining limits early enough, Fortress will contribute the necessary hooks or carry a minimal reviewed hardening patch/fork.
 
 ## Dependency boundary
 
@@ -137,7 +137,9 @@ Rejected. OneKeePass is a learning source only. Fortress keeps its own narrowly 
 4. [x] Project-generated KDBX4 Argon2id/AES-256-CBC fixture and read test pass in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 5. [x] Project-generated KDBX4 binary-pool attachment and database/group/entry `CustomData` fixture passes exact read-preservation tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 6. [x] Project-generated KDBX4 password + raw-32-byte-keyfile composite-key fixture passes positive/negative credential tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
-7. [ ] Add resource-budget enforcement before production open/decrypt is exposed to Android.
+7. [ ] Complete resource-budget enforcement before production open/decrypt is exposed to Android.
+   - [x] Pre-decrypt input/outer-header/KDF gate with typed failures, AES/Argon2 ceilings and overflow-safe combined-work checks.
+   - [ ] Decompression/expansion and post-decrypt structure/attachment/count ceilings.
 8. Keep the engine behind an internal adapter/handle boundary.
 9. Enable write support only after independent round-trip and reference-tool validation.
 10. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.
