@@ -29,6 +29,7 @@ The repository currently contains the project foundation, security/architecture 
     - [x] Materialize a deterministic synthetic KDBX 3.1 fixture covering AES-KDF, AES-256-CBC, Salsa20-protected password data, notes and a custom field; validate the SHA-256 over the decoded binary representation.
     - [x] Materialize a deterministic synthetic KDBX4 fixture covering Argon2id and AES-256-CBC outer encryption; validate the decoded SHA-256 and executable read path on Linux plus Android Rust targets.
     - [x] Materialize a deterministic synthetic KDBX4 fixture covering Argon2id and ChaCha20 outer encryption; validate the decoded SHA-256 and executable read path on Linux plus Android Rust targets.
+    - [x] Materialize a deterministic synthetic KDBX4 fixture covering binary-pool attachments (protected and unprotected) plus `CustomData` at database/group/entry levels; validate exact attachment bytes, protection state and custom-data values through the pinned Rust engine on Linux plus Android Rust targets.
   - [x] Materialize a KDBX4 Unicode round-trip fixture covering group/title/username/password/URL/notes.
   - [x] Add executable read compatibility tests against the pinned `keepass = 0.13.18` engine for the currently materialized KDBX3/KDBX4 positive fixtures and malformed-header/signature negative fixtures.
   - [ ] Add executable round-trip/interoperability tests before enabling write support.

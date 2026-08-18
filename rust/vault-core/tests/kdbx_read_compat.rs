@@ -5,6 +5,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
+    db::CustomDataValue,
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
@@ -127,6 +128,70 @@ fn opens_kdbx4_argon2id_aes_fixture_and_preserves_expected_fields() -> Result<()
     assert_eq!(entry.get_username(), Some("fixture-user"));
     assert_eq!(entry.get_password(), Some("fixture-secret"));
     assert_eq!(entry.get_url(), Some("https://example.test"));
+
+    Ok(())
+}
+
+#[test]
+fn opens_kdbx4_attachment_and_custom_data_fixture_without_loss() -> Result<(), Box<dyn Error>> {
+    let db = open_base64_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
+    ))?;
+
+    assert_eq!(db.num_attachments(), 2);
+    assert!(matches!(
+        db.meta
+            .custom_data
+            .get("FortressDatabaseCustom")
+            .and_then(|item| item.value.as_ref()),
+        Some(CustomDataValue::String(value)) if value == "database-custom-value"
+    ));
+
+    let root = db.root();
+    let group = root
+        .group_by_path(&["Synthetic"])
+        .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
+    assert!(matches!(
+        group
+            .custom_data
+            .get("FortressGroupCustom")
+            .and_then(|item| item.value.as_ref()),
+        Some(CustomDataValue::String(value)) if value == "group-custom-value"
+    ));
+
+    let entry = group
+        .entry_by_name("Example Login")
+        .ok_or_else(|| IoError::other("Example Login entry must exist"))?;
+    assert!(matches!(
+        entry
+            .custom_data
+            .get("FortressEntryCustom")
+            .and_then(|item| item.value.as_ref()),
+        Some(CustomDataValue::String(value)) if value == "entry-custom-value"
+    ));
+
+    let unprotected = entry
+        .attachment_by_name("fortress-note.txt")
+        .ok_or_else(|| IoError::other("unprotected fixture attachment must exist"))?;
+    assert!(!unprotected.data.is_protected());
+    assert_eq!(
+        unprotected.data.get().as_slice(),
+        b"KDBX Fortress synthetic attachment\n"
+    );
+
+    let protected = entry
+        .attachment_by_name("protected-secret.bin")
+        .ok_or_else(|| IoError::other("protected fixture attachment must exist"))?;
+    assert!(protected.data.is_protected());
+    assert_eq!(
+        protected.data.get().as_slice(),
+        b"\x00Fortress protected binary\xff\x10"
+    );
+
+    let names: Vec<_> = entry.attachments_named().map(|(name, _)| name).collect();
+    assert_eq!(names.len(), 2);
+    assert!(names.contains(&"fortress-note.txt"));
+    assert!(names.contains(&"protected-secret.bin"));
 
     Ok(())
 }
