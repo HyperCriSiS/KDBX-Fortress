@@ -5,7 +5,7 @@
 //! Production opening therefore remains disabled until that decompression path is
 //! bounded inside a Fortress-owned adapter/fork or an upstream hook.
 
-use keepass::Database;
+use keepass::{Database, db::GroupId};
 
 const MIB: u64 = 1024 * 1024;
 
@@ -57,6 +57,7 @@ pub enum KdbxPostDecryptError {
     AttachmentTooLarge { actual: u64, limit: u64 },
     TotalAttachmentBytesExceeded { actual: u64, limit: u64 },
     TooManyCustomDataItems { actual: usize, limit: usize },
+    InvalidGroupReference,
     SizeOverflow,
 }
 
@@ -82,8 +83,11 @@ pub fn validate_decrypted_database(
         |actual, limit| KdbxPostDecryptError::TooManyAttachments { actual, limit },
     )?;
 
-    let mut stack = vec![(database.root(), 1_usize)];
-    while let Some((group, depth)) = stack.pop() {
+    let mut stack: Vec<(GroupId, usize)> = vec![(database.root().id(), 1_usize)];
+    while let Some((group_id, depth)) = stack.pop() {
+        let group = database
+            .group(group_id)
+            .ok_or(KdbxPostDecryptError::InvalidGroupReference)?;
         if depth > limits.max_group_depth {
             return Err(KdbxPostDecryptError::GroupDepthExceeded {
                 actual: depth,
@@ -96,7 +100,7 @@ pub fn validate_decrypted_database(
             |actual, limit| KdbxPostDecryptError::TooManyCustomDataItems { actual, limit },
         )?;
         for child in group.groups() {
-            stack.push((child, depth.saturating_add(1)));
+            stack.push((child.id(), depth.saturating_add(1)));
         }
     }
 
