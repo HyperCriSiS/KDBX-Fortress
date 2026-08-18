@@ -2,6 +2,32 @@
   "schema": 1,
   "fixtures": [
     {
+      "file": "kdbx3-aes-aeskdf-basic.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "7941fe5a33adad0ec4eae56f0586b1b77b26550444368401f2fbb144ce47cf2c",
+      "password": "fixture-password",
+      "format": "KDBX3",
+      "kdf": {
+        "name": "AES-KDF",
+        "rounds": 6000
+      },
+      "outer_cipher": "AES-256-CBC",
+      "inner_cipher": "Salsa20",
+      "purpose": "deterministic KDBX 3.1 AES-KDF read-compatibility fixture with a protected password and custom field",
+      "expected": {
+        "group": "Synthetic KDBX3",
+        "title": "Legacy AES Login",
+        "username": "kdbx3-user",
+        "password": "kdbx3-fixture-secret",
+        "url": "https://legacy.example.test",
+        "notes": "KDBX3 AES-KDF synthetic fixture",
+        "custom_field": {
+          "name": "FortressCustom",
+          "value": "custom-value"
+        }
+      }
+    },
+    {
       "file": "basic-kdbx4.kdbx",
       "sha256": "3f9c8fffbe9f69b5e2ec3c33a7b246e90ecb6861b653c173489c0eee49bf472e",
       "password": "fixture-password",

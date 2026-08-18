@@ -1,7 +1,11 @@
 use std::error::Error;
 use std::io::Error as IoError;
 
-use keepass::{Database, DatabaseKey};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use keepass::{
+    config::{KdfConfig, OuterCipherConfig},
+    Database, DatabaseKey,
+};
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
 
@@ -12,6 +16,47 @@ fn open_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
     )
     .map_err(|error| IoError::other(error.to_string()).into())
+}
+
+fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
+    let bytes = STANDARD
+        .decode(encoded.trim())
+        .map_err(|error| IoError::other(error.to_string()))?;
+    open_fixture(&bytes)
+}
+
+#[test]
+fn opens_kdbx3_aes_kdf_fixture_and_preserves_protected_and_custom_fields(
+) -> Result<(), Box<dyn Error>> {
+    let db = open_base64_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx3-aes-aeskdf-basic.kdbx.b64"
+    ))?;
+
+    assert!(matches!(
+        db.config.kdf_config,
+        KdfConfig::Aes { rounds: 6000 }
+    ));
+    assert!(matches!(
+        db.config.outer_cipher_config,
+        OuterCipherConfig::AES256
+    ));
+
+    let group = db
+        .root()
+        .group_by_path(&["Synthetic KDBX3"])
+        .ok_or_else(|| IoError::other("Synthetic KDBX3 group must exist"))?;
+    let entry = group
+        .entry_by_name("Legacy AES Login")
+        .ok_or_else(|| IoError::other("Legacy AES Login entry must exist"))?;
+
+    assert_eq!(entry.get_title(), Some("Legacy AES Login"));
+    assert_eq!(entry.get_username(), Some("kdbx3-user"));
+    assert_eq!(entry.get_password(), Some("kdbx3-fixture-secret"));
+    assert_eq!(entry.get_url(), Some("https://legacy.example.test"));
+    assert_eq!(entry.get_notes(), Some("KDBX3 AES-KDF synthetic fixture"));
+    assert_eq!(entry.get("FortressCustom"), Some("custom-value"));
+
+    Ok(())
 }
 
 #[test]
