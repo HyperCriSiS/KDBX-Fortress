@@ -65,6 +65,57 @@ fn opens_basic_kdbx4_fixture_and_preserves_expected_fields() -> Result<(), Box<d
         "../../../test-fixtures/kdbx/basic-kdbx4.kdbx"
     ))?;
 
+    assert!(matches!(
+        db.config.kdf_config,
+        KdfConfig::Argon2 {
+            iterations: 14,
+            memory: 67_108_864,
+            parallelism: 2,
+            ..
+        }
+    ));
+    assert!(matches!(
+        db.config.outer_cipher_config,
+        OuterCipherConfig::AES256
+    ));
+
+    let root = db.root();
+    let group = root
+        .group_by_path(&["Synthetic"])
+        .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
+    let entry = group
+        .entry_by_name("Example Login")
+        .ok_or_else(|| IoError::other("Example Login entry must exist"))?;
+
+    assert_eq!(entry.get_title(), Some("Example Login"));
+    assert_eq!(entry.get_username(), Some("fixture-user"));
+    assert_eq!(entry.get_password(), Some("fixture-secret"));
+    assert_eq!(entry.get_url(), Some("https://example.test"));
+
+    Ok(())
+}
+
+#[test]
+fn opens_kdbx4_argon2id_chacha20_fixture_and_preserves_expected_fields()
+-> Result<(), Box<dyn Error>> {
+    let db = open_base64_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx4-argon2id-chacha20.kdbx.b64"
+    ))?;
+
+    assert!(matches!(
+        db.config.kdf_config,
+        KdfConfig::Argon2id {
+            iterations: 2,
+            memory: 65_536,
+            parallelism: 1,
+            ..
+        }
+    ));
+    assert!(matches!(
+        db.config.outer_cipher_config,
+        OuterCipherConfig::ChaCha20
+    ));
+
     let root = db.root();
     let group = root
         .group_by_path(&["Synthetic"])
