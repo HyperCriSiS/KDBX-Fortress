@@ -123,8 +123,10 @@ jobs:
           $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
           $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
 
-          Invoke-WebRequest -Uri 'https://downloads.sourceforge.net/project/keepass/KeePass%202.x/2.61.1/KeePass-2.61.1.zip' -OutFile $keepassZip
-          Invoke-WebRequest -Uri 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' -OutFile $kpscriptZip
+          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $keepassZip 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download?use_mirror=phoenixnap'
+          if ($LASTEXITCODE -ne 0) { throw "KeePass download failed (curl exit $LASTEXITCODE)" }
+          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $kpscriptZip 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip'
+          if ($LASTEXITCODE -ne 0) { throw "KPScript download failed (curl exit $LASTEXITCODE)" }
 
           function Assert-ReferencePackage {
             param(
