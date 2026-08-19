@@ -10,9 +10,9 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the bounded read-only KDBX path enforces the required pre-decrypt, decompression/attachment-expansion and post-decrypt resource budgets, KDBX4 test serialization is guarded against silent minor-version and unknown-XML loss, and write support now remains blocked primarily on the KeePass 2.x reference gate plus remaining corpus/API/memory-hygiene work.**
+Status: **Phase 0 in progress; the bounded read-only KDBX path enforces the required resource budgets, KDBX4 test serialization is guarded against silent minor-version and unknown-XML loss, and both independent KeePassXC and KeePass 2.x/KPScript reopen gates are automated. Remaining Phase 0 blockers are the accepted-corpus gaps plus stable API and memory-hygiene work.**
 
-Repository base before this roadmap update: `main` at `f1cc636212bbadd07e7d3e6047a82e3877cc138b`.
+Repository base before this roadmap update: `main` at `5832e1bd884c695eccb62c8003a717dc5bfc4a1f`.
 
 - The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `d343a639145d9b60d8abe6affdd9506310d56b11` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach.
 - Deterministic generated fixtures and executable Rust tests cover KDBX 3.1 and KDBX 4 variants, including AES-KDF, Argon2d, Argon2id, AES-256-CBC, ChaCha20 outer encryption, protected fields, Unicode, attachments, `CustomData`, and password + raw-32-byte key-file composite credentials.
@@ -42,16 +42,16 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
     - [x] Materialize and exercise a deterministic KDBX 4 fixture covering attachments and `CustomData`, including protected/unprotected binary-pool data and database/group/entry metadata preservation on read.
     - [x] Materialize and exercise a generated KDBX 4 fixture requiring a composite password plus external raw-32-byte key file; validate database/key-file SHA-256 values, sidecar size and positive/negative credential combinations through the pinned Rust engine.
   - [x] Add executable read-compatibility tests for the currently materialized positive fixtures and malformed-header/signature/credential negative cases.
-  - [ ] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.
+  - [x] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.
     - [x] Add a test-only KDBX4 serializer characterization harness covering direct KDBX 4.0 save refusal plus explicit 4.0 → 4.1 migration for Argon2id/AES-256, Argon2id/ChaCha20, Unicode values, protected/unprotected attachments, database/group/entry `CustomData`, and password + raw-32-byte key-file credentials. Save support remains enabled only through a dev-dependency feature.
     - [x] Decide and document the supported write policy for KDBX 4.0 versus explicit KDBX 4.1 migration in `docs/KDBX_WRITE_POLICY.md`: initial production writes target KDBX 4.1 only; KDBX 4.0 remains read-only unless the user deliberately invokes a separately validated migration, and ordinary Save must never perform a silent minor-version upgrade.
     - [x] Resolve/scope KDBX 3 write support for the initial write envelope: KDBX 3.1 remains bounded read-only; no implicit KDBX 3 → 4.1 conversion substitutes for the pinned engine's lack of KDBX 3 serialization.
-    - [ ] Complete the remaining semantic-preservation matrix, including history and unknown/preservable metadata behavior.
+    - [x] Complete the remaining semantic-preservation matrix, including history and unknown/preservable metadata behavior.
       - [x] Preserve entry history across explicit KDBX 4.1 serialization/reopen, including protected password state and non-nested historical snapshots; include the produced history database in the independent KeePassXC reopen gate.
       - [x] Characterize and safely handle unknown/not-yet-modeled XML metadata: the pinned Fortress fork records ignored Serde XML paths during tolerant reads and `Database::save` fails with `UnpreservedXmlFields` before writing any output when such paths exist, preventing silent extension/newer-minor metadata loss while retaining read compatibility.
-    - [ ] Reopen Fortress-produced outputs with independent KeePass and KeePassXC reference tools before any production write API is enabled.
+    - [x] Reopen Fortress-produced outputs with independent KeePass and KeePassXC reference tools before any production write API is enabled.
       - [x] Emit representative serializer outputs from the existing KDBX 4.1 characterization tests and reopen password-only plus password/key-file outputs with `keepassxc-cli` in Foundation CI.
-      - [ ] Add a reproducible KeePass 2.x/KPScript reopening check for representative Fortress-produced KDBX 4.1 outputs.
+      - [x] Reopen representative Fortress-produced KDBX 4.1 outputs with pinned KeePass 2.61.1/KPScript 2.61.1 on Windows CI after verifying official package sizes and SHA-256 hashes, including password-only and password + raw-32-byte-key-file credentials.
   - [x] Enforce explicit Fortress-owned resource limits **before production parsing/decryption**: input size, Argon2 memory/time/parallelism policy, recursion/depth, entry/field/attachment counts and sizes, and decompression ceilings. Rejections are typed and safe.
     - [x] Pre-decrypt input/outer-header/KDF preflight with typed safe failures, AES-KDF ceilings, Argon2 memory/iterations/parallelism ceilings and an overflow-safe combined-work ceiling.
     - [x] Post-decrypt structure/attachment/count ceilings and decompression/expansion limits.
@@ -212,17 +212,16 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Write support is blocked on the remaining independent reference-tool/corpus validation.** The version policy is explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation and unknown-XML fail-closed handling are covered; KeePassXC reopening is automated in Foundation CI. A reproducible KeePass 2.x/KPScript reopen gate plus the remaining accepted fixture/corpus gaps are still required.
+1. **Write support is blocked on the remaining accepted fixture/corpus validation, not reference-tool coverage.** The version policy is explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation, unknown-XML fail-closed handling, KeePassXC reopening and pinned KeePass 2.x/KPScript reopening are automated; the remaining accepted fixture/corpus gaps must still be closed before production writing is considered.
 2. **Production KDBX open/decrypt exposure is blocked on completing the accepted-corpus/no-panic/no-regression gate and the stable Rust handle/API plus secret-buffer memory-hygiene work.** The Fortress-owned resource-budget gate itself is complete.
 3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Complete the remaining round-trip/interoperability gate by adding a reproducible KeePass 2.x/KPScript reopen check; keep the KDBX 4.1-only write policy and ignored-XML fail-closed save gate enforced.
-2. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics, unbounded allocation or format regressions.
-3. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.
-4. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.
+1. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics, unbounded allocation or format regressions.
+2. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.
+3. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.
 
 ## Completion status
 

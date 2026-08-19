@@ -71,6 +71,8 @@ Write support remains disabled until all fixtures that the selected engine claim
 
 Byte-for-byte equality is not required because salts/nonces and representation details may legitimately change. Logical equivalence and independent implementation interoperability are required.
 
+As of Phase 0, representative Fortress-produced KDBX 4.1 outputs are reopened automatically by both KeePassXC and pinned KeePass 2.61.1/KPScript 2.61.1 in Foundation CI; this reference-tool gate remains additive to the Fortress-owned semantic assertions.
+
 ## Fixture provenance
 
 Each fixture must have a sidecar manifest containing at least:

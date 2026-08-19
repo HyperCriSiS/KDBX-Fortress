@@ -64,13 +64,13 @@ Unknown or not-yet-proven metadata must bias toward preservation and read-only b
 No production write API may be enabled from Rust/JNI until Fortress-produced outputs are independently reopened by both reference families required by the compatibility matrix:
 
 - **KeePassXC**: automated CI reopening is required for representative synthetic KDBX 4.1 outputs, including password-only and password + key-file credentials.
-- **KeePass 2.x**: an automated or otherwise reproducible independent reopening check is still required before production writing is enabled.
+- **KeePass 2.x**: Foundation CI pins KeePass 2.61.1 and KPScript 2.61.1 by official package size/SHA-256, generates representative Fortress KDBX 4.1 outputs on Windows, and reopens password-only plus password/key-file outputs through KPScript.
 
 Reference-tool success is an additional gate; it does not replace Fortress-owned semantic assertions.
 
 ## Current implementation consequence
 
-The `save_kdbx4` engine feature remains test-only. The pinned engine now carries the ignored-XML diagnostic/fail-closed save gate, but production `keepass` dependency configuration remains read-only until the remaining reference-tool/corpus gates are complete and a reviewed production write API is introduced in a later phase.
+The `save_kdbx4` engine feature remains test-only. The pinned engine carries the ignored-XML diagnostic/fail-closed save gate, and both independent reference-family reopen checks are automated. Production `keepass` dependency configuration nevertheless remains read-only until the remaining accepted-corpus/API/memory-hygiene gates are complete and a reviewed production write API is introduced in a later phase.
 
 ## Compatibility rationale
 
