@@ -1,13 +1,16 @@
 name: Roadmap sync
 
-on:
-  workflow_dispatch:
+"on":
+  push:
+    branches:
+      - test/keepass2-kpscript-reopen
 
 permissions:
   contents: write
 
 jobs:
   sync:
+    if: github.event.head_commit.message == 'ci: enable one-shot roadmap sync'
     runs-on: ubuntu-24.04
     steps:
       - name: Check out branch
