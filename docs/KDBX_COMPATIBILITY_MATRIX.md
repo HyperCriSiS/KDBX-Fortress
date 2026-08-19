@@ -65,7 +65,7 @@ Write support remains disabled until all fixtures that the selected engine claim
 - KDF/cipher settings are not silently weakened;
 - attachments remain byte-identical;
 - history/custom data are preserved where supported;
-- unknown-but-preservable fields are not silently discarded;
+- unknown-but-preservable fields are not silently discarded; when the tolerant parser encounters not-yet-modeled XML, the engine must record that fact and serialization must fail before output is written until preservation support exists;
 - KeePassXC and KeePass 2.x can independently reopen representative produced databases;
 - a failed serialization never produces a partial success artifact.
 
