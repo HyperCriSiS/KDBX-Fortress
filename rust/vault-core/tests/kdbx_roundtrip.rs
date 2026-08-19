@@ -347,7 +347,10 @@ fn explicit_41_migration_history_preserves_snapshot_values_and_protection()
                 .is_some_and(|value| value.is_protected()),
             "historical password must remain protected"
         );
-        assert!(previous.history.is_none(), "history snapshots must not nest history");
+        assert!(
+            previous.history.is_none(),
+            "history snapshots must not nest history"
+        );
         Ok(())
     };
 
