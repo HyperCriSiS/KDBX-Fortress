@@ -184,6 +184,46 @@
       }
     },
     {
+      "file": "kdbx4-empty-edge.kdbx",
+      "sha256": "f510d15d2cce7ec28166de2899b2c3b712dd0345985d1d11467ebe3b06969316",
+      "password": "fixture-password",
+      "format": "KDBX4.1",
+      "kdf": {
+        "name": "Argon2id",
+        "iterations": 2,
+        "memory_bytes": 65536,
+        "parallelism": 1,
+        "version": 19
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "deterministic KDBX 4.1 edge-case fixture covering empty strings, missing optional fields, a field-less entry and an empty group",
+      "expected": {
+        "edge_group": "Edge Cases",
+        "empty_strings_entry": {
+          "title": "Empty Strings",
+          "username": "",
+          "password": "",
+          "url": "",
+          "notes": "",
+          "custom_field": {
+            "name": "EmptyCustom",
+            "value": ""
+          }
+        },
+        "sparse_entry": {
+          "title": "Sparse Entry",
+          "missing_fields": [
+            "UserName",
+            "Password",
+            "URL",
+            "Notes"
+          ]
+        },
+        "fieldless_entry": true,
+        "empty_group": "Empty Group"
+      }
+    },
+    {
       "file": "truncated-header-kdbx4.kdbx",
       "sha256": "06244a1e48bead1fc908998b806048cd98a0f2980cf42597fd9a8abe5091359b",
       "format": "KDBX4",

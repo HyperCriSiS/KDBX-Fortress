@@ -20,9 +20,10 @@ fn generate_kdbx4_empty_edge_fixture() -> Result<(), Box<dyn Error>> {
         .map(PathBuf::from)
         .ok_or_else(|| IoError::new(ErrorKind::InvalidInput, "FORTRESS_FIXTURE_OUTPUT is required"))?;
 
-    let source_bytes = STANDARD.decode(
-        include_str!("../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64").trim(),
-    )?;
+    let source_bytes = STANDARD
+        .decode(
+            include_str!("../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64").trim(),
+        )?;
     let source = open_kdbx_bounded(
         &source_bytes,
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
