@@ -61,3 +61,14 @@ A fixture used to claim KDBX compatibility should be checked with at least two i
 ## Repository hygiene
 
 Fixtures must contain synthetic identities and credentials only. Do not include personal URLs, emails, passwords, tokens or exported real vault data. Any generator or fixture metadata added to the repository must pass the normal secret-scanning and Foundation checks.
+
+## Existing corpus status
+
+The current corpus predates this policy. Manifest schema 2 therefore records both evidence and unresolved gaps instead of treating a stable hash or a successful Fortress read as complete provenance.
+
+- Existing positive fixtures remain valid regression inputs, but all are marked `incomplete` until their generator/version or precise upstream source and an independent compatibility oracle are recorded.
+- A generator reopening its own output is not an independent-reader oracle and is labeled accordingly.
+- Missing historical facts are represented as `null` plus an explicit gap; they must never be guessed.
+- Negative derivatives record a source fixture, operation and parameters. The validator reconstructs the derivative and requires byte-for-byte equality, proving that unrelated bytes were not changed.
+
+Provenance completion is intentionally separate from read coverage. Changing an entry to `complete` requires closing every recorded gap and passing the validator; it does not by itself authorize KDBX write support.

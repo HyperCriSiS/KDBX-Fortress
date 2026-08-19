@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "fixtures": [
     {
       "file": "kdbx3-aes-aeskdf-basic.kdbx.b64",
@@ -13,7 +13,18 @@
       },
       "outer_cipher": "AES-256-CBC",
       "inner_cipher": "Salsa20",
-      "purpose": "deterministic KDBX 3.1 AES-KDF read-compatibility fixture with a protected password and custom field",
+      "purpose": "committed synthetic KDBX 3.1 AES-KDF read-compatibility fixture with a protected password and custom field",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "repository-introduction",
+        "evidence": ["git:e3db7353c7ed3e6991b12daa88b47fca1516d50d"],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "generator procedure and version were not retained",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic KDBX3",
         "title": "Legacy AES Login",
@@ -32,7 +43,21 @@
       "sha256": "3f9c8fffbe9f69b5e2ec3c33a7b246e90ecb6861b653c173489c0eee49bf472e",
       "password": "fixture-password",
       "format": "KDBX4",
-      "purpose": "minimal password-only KDBX4 interoperability smoke fixture covering Argon2d and AES-256-CBC",
+      "purpose": "minimal password-only KDBX4 read-compatibility smoke fixture covering Argon2d and AES-256-CBC",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "historical-generator-workflow",
+        "evidence": ["git:193b1ed100891d47fc2de7bcc635cd545fec100d:.github/workflows/automation-materialize-kdbx-fixture.yml"],
+        "generator": {
+          "name": "PyKeePass",
+          "version": null
+        },
+        "independent_oracle": null,
+        "gaps": [
+          "generator version was not pinned",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
@@ -63,7 +88,18 @@
         "version": 19
       },
       "outer_cipher": "AES-256-CBC",
-      "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and AES-256-CBC outer encryption",
+      "purpose": "committed synthetic KDBX4 read-compatibility fixture covering Argon2id and AES-256-CBC outer encryption",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "repository-introduction",
+        "evidence": ["git:37d2b8748145d9950ea17e2e58ae8fb243a2fd3b"],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "generator procedure and version were not retained",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
@@ -86,7 +122,21 @@
         "version": 19
       },
       "outer_cipher": "AES-256-CBC",
-      "purpose": "deterministic KDBX4 read-compatibility fixture covering binary-pool attachments and CustomData at database/group/entry levels",
+      "purpose": "committed synthetic KDBX4 read-compatibility fixture covering binary-pool attachments and CustomData at database/group/entry levels",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "repository-introduction",
+        "evidence": [
+          "git:940a380798d1794b18762c4f05e1a84b1d7a50ac",
+          "git:8a92d3e1c3af6bf4aa557c6c4d56e71c2bb6ce9c"
+        ],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "generator procedure and version were not retained",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
@@ -136,7 +186,18 @@
         "size": 32,
         "sha256": "3b3f1e0480af8a0e557476d376630c206959e1af1d55dd8464a04aa80a206cc1"
       },
-      "purpose": "deterministic KDBX4 read-compatibility fixture requiring a composite password + raw-32-byte keyfile",
+      "purpose": "committed synthetic KDBX4 read-compatibility fixture requiring a composite password + raw-32-byte keyfile",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "repository-introduction",
+        "evidence": ["git:8f9f622fcd8b4e1ac98a6a1b7f982f9acfdd9966"],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "generator procedure and version were not retained",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
@@ -159,7 +220,21 @@
         "version": 19
       },
       "outer_cipher": "ChaCha20",
-      "purpose": "deterministic KDBX4 read-compatibility fixture covering Argon2id and ChaCha20 outer encryption",
+      "purpose": "committed synthetic KDBX4 read-compatibility fixture covering Argon2id and ChaCha20 outer encryption",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "repository-introduction",
+        "evidence": [
+          "git:d124d5ff010375b1e9934c834c6644be5b884020",
+          "git:7785cd5a808f92e6f783eeddf1e1db4b4f86ad33"
+        ],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "generator procedure and version were not retained",
+          "independent reader validation is not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetic",
         "title": "Example Login",
@@ -173,7 +248,24 @@
       "sha256": "43a206b65b0387c66ae1c27e95c5e84ba8d737cee0d2d5ad7cfb95b9767ef30a",
       "password": "fixture-password",
       "format": "KDBX4",
-      "purpose": "Unicode round-trip interoperability fixture",
+      "kdf": null,
+      "outer_cipher": null,
+      "purpose": "Unicode read-compatibility fixture",
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "historical-generator-workflow",
+        "evidence": ["git:878e8bc14d87cb9cfb60e31be077b4bfe797e9f4:.github/workflows/automation-materialize-unicode-kdbx.yml"],
+        "generator": {
+          "name": "PyKeePass",
+          "version": null
+        },
+        "independent_oracle": null,
+        "gaps": [
+          "generator version was not pinned",
+          "the historical verification reopened the file with the generating implementation only",
+          "KDF and outer-cipher metadata are not recorded"
+        ]
+      },
       "expected": {
         "group": "Synthetisch-Üñîçødé-测试",
         "title": "Anmeldung 🔐 – 東京",
@@ -188,6 +280,23 @@
       "sha256": "06244a1e48bead1fc908998b806048cd98a0f2980cf42597fd9a8abe5091359b",
       "format": "KDBX4",
       "purpose": "deterministic truncated-header rejection fixture",
+      "derivation": {
+        "source_file": "basic-kdbx4.kdbx",
+        "operation": "prefix",
+        "parameters": {
+          "length": 8
+        }
+      },
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "deterministic-derivation",
+        "evidence": ["git:e72721fc37f9da43ccd3398fcde2776bb6eba566:.github/workflows/automation-materialize-truncated-kdbx.yml"],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "independent rejection-oracle validation is not recorded"
+        ]
+      },
       "expected_failure": "truncated_header"
     },
     {
@@ -195,6 +304,24 @@
       "sha256": "3eb2d4f8a1d265b68dc982fe9de498f865007ab5ef2512575c54d831f8508ca0",
       "format": "KDBX4",
       "purpose": "deterministic invalid-signature rejection fixture",
+      "derivation": {
+        "source_file": "basic-kdbx4.kdbx",
+        "operation": "xor-byte",
+        "parameters": {
+          "offset": 0,
+          "mask": 255
+        }
+      },
+      "provenance": {
+        "status": "incomplete",
+        "source_kind": "deterministic-derivation",
+        "evidence": ["git:aa30f6bc4c863961c3f18006a8ce070a1b2e9725:.github/workflows/automation-materialize-bad-signature-kdbx.yml"],
+        "generator": null,
+        "independent_oracle": null,
+        "gaps": [
+          "independent rejection-oracle validation is not recorded"
+        ]
+      },
       "expected_failure": "invalid_signature"
     }
   ]

@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::{Cursor, Error as IoError};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use kdbx_fortress_vault_core::{KdbxPostDecryptLimits, validate_decrypted_database};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
@@ -53,6 +54,8 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
     let mut source = fixture.as_slice();
     let db = Database::open(&mut source, composite_key(password, KEYFILE)?)
         .map_err(|error| IoError::other(error.to_string()))?;
+    validate_decrypted_database(&db, KdbxPostDecryptLimits::default())
+        .map_err(|error| IoError::other(format!("post-decrypt validation failed: {error:?}")))?;
 
     assert!(matches!(
         db.config.kdf_config,

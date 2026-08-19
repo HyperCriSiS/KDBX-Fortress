@@ -52,16 +52,16 @@ jobs:
         run: cargo fmt --manifest-path rust/Cargo.toml --all --check
 
       - name: Clippy
-        run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
+        run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets --locked -- -D warnings
 
       - name: Unit tests
-        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets
+        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets --locked
 
       - name: Add Android Rust targets
         run: rustup target add aarch64-linux-android x86_64-linux-android
 
       - name: Check Android ARM64 target
-        run: cargo check --manifest-path rust/Cargo.toml --workspace --target aarch64-linux-android
+        run: cargo check --manifest-path rust/Cargo.toml --workspace --target aarch64-linux-android --locked
 
       - name: Check Android x86_64 target
-        run: cargo check --manifest-path rust/Cargo.toml --workspace --target x86_64-linux-android
+        run: cargo check --manifest-path rust/Cargo.toml --workspace --target x86_64-linux-android --locked

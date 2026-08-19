@@ -4,7 +4,7 @@ Status: Proposed; acceptance requires an executable Android spike
 
 ## Context
 
-KDBX Bastion uses Kotlin for Android/platform integration and Rust for the isolated vault core. The boundary itself is security-sensitive and must remain small.
+KDBX Fortress uses Kotlin for Android/platform integration and Rust for the isolated vault core. The boundary itself is security-sensitive and must remain small.
 
 ## Proposed direction
 

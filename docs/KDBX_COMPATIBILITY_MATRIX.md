@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the deterministic interoperability corpus that must exist before KDBX Bastion exposes production vault operations to Android. It is intentionally engine-neutral: the same fixtures and acceptance criteria are used to evaluate an upstream Rust dependency, a hardened fork, or an independent orchestration layer.
+This document defines the deterministic interoperability corpus that must exist before KDBX Fortress exposes production vault operations to Android. It is intentionally engine-neutral: the same fixtures and acceptance criteria are used to evaluate an upstream Rust dependency, a hardened fork, or an independent orchestration layer.
 
 ## Reference implementations
 
@@ -89,4 +89,4 @@ Real user vaults or credentials must never be committed.
 
 ## Engine evaluation use
 
-The same corpus is used to compare candidate strategies. A candidate is not selected because it has the broadest advertised feature list; it is selected only after the required matrix passes and its API permits KDBX Bastion's resource limits, protected-value boundary, explicit lock semantics and future round-trip requirements.
+The same corpus is used to compare candidate strategies. A candidate is not selected because it has the broadest advertised feature list; it is selected only after the required matrix passes and its API permits KDBX Fortress's resource limits, protected-value boundary, explicit lock semantics and future round-trip requirements.

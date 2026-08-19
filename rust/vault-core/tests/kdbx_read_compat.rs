@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::Error as IoError;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use kdbx_fortress_vault_core::{KdbxPostDecryptLimits, validate_decrypted_database};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
@@ -12,11 +13,14 @@ const FIXTURE_PASSWORD: &str = "fixture-password";
 
 fn open_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
     let mut source = bytes;
-    Database::open(
+    let database = Database::open(
         &mut source,
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
     )
-    .map_err(|error| IoError::other(error.to_string()).into())
+    .map_err(|error| IoError::other(error.to_string()))?;
+    validate_decrypted_database(&database, KdbxPostDecryptLimits::default())
+        .map_err(|error| IoError::other(format!("post-decrypt validation failed: {error:?}")))?;
+    Ok(database)
 }
 
 fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {

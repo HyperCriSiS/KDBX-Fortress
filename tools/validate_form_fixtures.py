@@ -47,6 +47,8 @@ def validate_file(path: Path) -> None:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValidationError(f"invalid JSON: {path}: {exc}") from exc
 
+    if not isinstance(data, dict):
+        raise ValidationError(f"fixture must be an object: {path.name}")
     if set(data) != {"id", "source", "expected", "fields"}:
         raise ValidationError(f"unexpected top-level keys in {path.name}")
     if not isinstance(data["id"], str) or not ID_RE.fullmatch(data["id"]):
@@ -59,15 +61,19 @@ def validate_file(path: Path) -> None:
         raise ValidationError(f"invalid source metadata in {path.name}")
     if set(source) - {"kind", "reference"}:
         raise ValidationError(f"unexpected source metadata in {path.name}")
+    if "reference" in source and not isinstance(source["reference"], str):
+        raise ValidationError(f"source reference must be a string in {path.name}")
 
     expected = data["expected"]
     if not isinstance(expected, dict) or not isinstance(expected.get("roles"), dict):
         raise ValidationError(f"invalid expected roles in {path.name}")
     if set(expected) - {"roles", "notes"}:
         raise ValidationError(f"unexpected expected metadata in {path.name}")
+    if "notes" in expected and not isinstance(expected["notes"], str):
+        raise ValidationError(f"expected notes must be a string in {path.name}")
     for role in expected["roles"].values():
-        if role not in VALID_ROLES:
-            raise ValidationError(f"unknown role {role!r} in {path.name}")
+        if not isinstance(role, str) or role not in VALID_ROLES:
+            raise ValidationError(f"invalid role {role!r} in {path.name}")
 
     fields = data["fields"]
     if not isinstance(fields, list) or not fields:
@@ -87,6 +93,18 @@ def validate_file(path: Path) -> None:
         if not isinstance(hints, list) or not all(isinstance(x, str) for x in hints):
             raise ValidationError(f"invalid hints in {path.name}")
 
+        for property_name in ("htmlType", "name"):
+            if (
+                property_name in field
+                and field[property_name] is not None
+                and not isinstance(field[property_name], str)
+            ):
+                raise ValidationError(
+                    f"field {property_name} must be a string or null in {path.name}"
+                )
+        if "focused" in field and not isinstance(field["focused"], bool):
+            raise ValidationError(f"field focused must be boolean in {path.name}")
+
     if set(expected["roles"]) != ids:
         raise ValidationError(f"expected role map must cover every field in {path.name}")
 
@@ -102,21 +120,76 @@ def validate_all(directory: Path = FIXTURE_DIR) -> int:
     return len(paths)
 
 
+def self_test_fixture() -> dict:
+    return {
+        "id": "bad",
+        "source": {"kind": "synthetic"},
+        "expected": {"roles": {"p": "CurrentPassword"}},
+        "fields": [
+            {
+                "id": "p",
+                "inputType": "password",
+                "autofillHints": ["password"],
+                "htmlType": None,
+                "name": "password",
+                "focused": True,
+            }
+        ],
+    }
+
+
+def expect_invalid_fixture(
+    path: Path,
+    payload: object,
+    expected_fragment: str,
+) -> None:
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    try:
+        validate_file(path)
+    except ValidationError as error:
+        if expected_fragment not in str(error):
+            raise AssertionError(
+                f"expected failure containing {expected_fragment!r}, got: {error}"
+            ) from error
+    else:
+        raise AssertionError(
+            f"validator accepted invalid fixture; expected {expected_fragment!r}"
+        )
+
+
 def self_test() -> None:
     count = validate_all()
     with tempfile.TemporaryDirectory(prefix="fixture-validator-") as tmp:
         bad = Path(tmp) / "bad.json"
-        bad.write_text(json.dumps({
-            "id": "bad", "source": {"kind": "synthetic"},
-            "expected": {"roles": {"p": "CurrentPassword"}},
-            "fields": [{"id": "p", "inputType": "password", "password": "do-not-store-this"}]
-        }), encoding="utf-8")
-        try:
-            validate_file(bad)
-        except ValidationError:
-            pass
-        else:
-            raise AssertionError("validator accepted a secret-bearing fixture")
+        expect_invalid_fixture(bad, [], "fixture must be an object")
+
+        invalid_cases = (
+            (("source", "reference"), 42, "source reference must be a string"),
+            (("expected", "notes"), [], "expected notes must be a string"),
+            (("expected", "roles", "p"), [], "invalid role"),
+            (("fields", 0, "autofillHints"), [7], "invalid hints"),
+            (("fields", 0, "htmlType"), 7, "field htmlType"),
+            (("fields", 0, "name"), {}, "field name"),
+            (("fields", 0, "focused"), "yes", "field focused"),
+            (
+                ("expected", "notes"),
+                "ghp_" + ("a" * 20),
+                "token-like data",
+            ),
+            (
+                ("fields", 0, "password"),
+                "do-not-store-this",
+                "unexpected field property",
+            ),
+        )
+        for property_path, invalid_value, expected_fragment in invalid_cases:
+            payload = self_test_fixture()
+            parent = payload
+            for key in property_path[:-1]:
+                parent = parent[key]
+            parent[property_path[-1]] = invalid_value
+            expect_invalid_fixture(bad, payload, expected_fragment)
+
     print(f"Validator self-test OK ({count} baseline fixtures)")
 
 

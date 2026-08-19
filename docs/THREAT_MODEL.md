@@ -1,8 +1,8 @@
-# KDBX Bastion Threat Model
+# KDBX Fortress Threat Model
 
 ## Scope
 
-KDBX Bastion is an Android password manager that keeps KeePass/KDBX interoperability as a hard compatibility requirement. The Android application is written in Kotlin; security-critical vault parsing, cryptography and unlocked-vault state belong in the isolated Rust vault core.
+KDBX Fortress is an Android password manager that keeps KeePass/KDBX interoperability as a hard compatibility requirement. The Android application is written in Kotlin; security-critical vault parsing, cryptography and unlocked-vault state belong in the isolated Rust vault core.
 
 This threat model covers the first production architecture. It must be revisited before adding synchronization, browser integration, non-standard cryptography or new exported Android components.
 
@@ -216,7 +216,7 @@ Controls:
 
 ## Post-quantum / crypto agility
 
-KDBX Bastion must not market standard KDBX encryption as post-quantum secure beyond what its standardized primitives justify. Any future post-quantum layer must be separately threat-modeled, versioned, opt-in/additive and must not silently produce a database that normal KeePass implementations cannot open. Crypto agility is preferred over inventing an undocumented KDBX dialect.
+KDBX Fortress must not market standard KDBX encryption as post-quantum secure beyond what its standardized primitives justify. Any future post-quantum layer must be separately threat-modeled, versioned, opt-in/additive and must not silently produce a database that normal KeePass implementations cannot open. Crypto agility is preferred over inventing an undocumented KDBX dialect.
 
 ## Security invariants for CI/review
 

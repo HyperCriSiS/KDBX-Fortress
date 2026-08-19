@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kdbx-bastion.invalid/schema/form-snapshot.schema.json",
-  "title": "KDBX Bastion synthetic FormSnapshot fixture",
+  "$id": "https://kdbx-fortress.invalid/schema/form-snapshot.schema.json",
+  "title": "KDBX Fortress synthetic FormSnapshot fixture",
   "type": "object",
   "required": ["id", "source", "expected", "fields"],
   "properties": {

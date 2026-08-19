@@ -6,18 +6,20 @@ KDBX Fortress welcomes contributions, but password-manager code has a high secur
 
 Read at least:
 
-- `Roadmap.md`
-- `ARCHITECTURE.md`
-- `MODULE_BOUNDARIES.md`
-- `SECURITY_INVARIANTS.md`
-- `THREAT_MODEL.md`
-- `TEST_STRATEGY.md`
+- `AGENTS.md`
+- `ROADMAP.md`
+- `SECURITY.md`
+- `docs/THREAT_MODEL.md`
+- `docs/VAULT_CORE_API.md`
+- `docs/KDBX_COMPATIBILITY_MATRIX.md`
+- `docs/FIXTURE_PROVENANCE.md`
+- `docs/adr/0001-android-platform-baseline.md`
+- `docs/adr/0002-kotlin-rust-interop.md`
 
 For Autofill/Credential Manager changes also read:
 
-- `ANDROID_CREDENTIAL_ARCHITECTURE.md`
-- `LESSONS_FROM_EXISTING_CLIENTS.md`
-- `ISSUE_PR_CLASSIFICATION.md`
+- `docs/research/ONEKEEPASS_MOBILE_LESSONS.md`
+- `test-fixtures/form/README.md`
 
 ## Development principles
 
@@ -45,7 +47,7 @@ Changes involving any of the following require explicit threat/invariant review:
 - secret-memory/transport handling;
 - plugin/extension capabilities.
 
-The pull request should name the affected `SI-*` security invariants and describe negative/adversarial tests.
+The pull request should name the affected security goals or invariants from `docs/THREAT_MODEL.md` and describe negative/adversarial tests.
 
 ## Code provenance
 
