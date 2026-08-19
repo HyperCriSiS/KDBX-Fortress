@@ -75,8 +75,8 @@ fn round_trip_argon2id_aes_preserves_crypto_and_entry_semantics() -> Result<(), 
 }
 
 #[test]
-fn round_trip_argon2id_chacha20_preserves_crypto_and_entry_semantics()
--> Result<(), Box<dyn Error>> {
+fn round_trip_argon2id_chacha20_preserves_crypto_and_entry_semantics() -> Result<(), Box<dyn Error>>
+{
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-argon2id-chacha20.kdbx.b64"
     ))?;
@@ -124,8 +124,8 @@ fn round_trip_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata()
--> Result<(), Box<dyn Error>> {
+fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata() -> Result<(), Box<dyn Error>>
+{
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
     ))?;
@@ -185,14 +185,14 @@ fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata()
 }
 
 #[test]
-fn round_trip_composite_password_and_raw32_keyfile_remains_required()
--> Result<(), Box<dyn Error>> {
+fn round_trip_composite_password_and_raw32_keyfile_remains_required() -> Result<(), Box<dyn Error>>
+{
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-composite-key-keyfile.kdbx.b64"
     ))?;
     let keyfile: &[u8; 32] =
         include_bytes!("../../../test-fixtures/kdbx/kdbx4-composite-key.raw32.key");
-    let password = "fixture-password-keyfile";
+    let password = FIXTURE_PASSWORD;
 
     let make_key = || -> Result<DatabaseKey, Box<dyn Error>> {
         Ok(DatabaseKey::new()
