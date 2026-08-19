@@ -5,8 +5,10 @@
 //! header metadata only to enforce Fortress-owned resource limits before any
 //! expensive KDF/decrypt path is entered.
 
+mod postflight;
 mod preflight;
 
+pub use postflight::{KdbxPostDecryptError, KdbxPostDecryptLimits, validate_decrypted_database};
 pub use preflight::{
     KdbxPreflightError, KdbxPreflightReport, KdbxResourceLimits, KdfField, KdfPreflight,
     check_kdbx_input_size, preflight_kdbx,
