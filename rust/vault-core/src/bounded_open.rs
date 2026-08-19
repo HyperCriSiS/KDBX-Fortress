@@ -88,7 +88,9 @@ pub fn open_kdbx_bounded(
         max_input_bytes: to_usize(limits.preflight.max_input_bytes)?,
         max_decompressed_payload_bytes: to_usize(limits.max_decompressed_payload_bytes)?,
         max_decompressed_binary_bytes: to_usize(limits.post_decrypt.max_attachment_bytes)?,
-        max_total_decompressed_binary_bytes: to_usize(limits.post_decrypt.max_total_attachment_bytes)?,
+        max_total_decompressed_binary_bytes: to_usize(
+            limits.post_decrypt.max_total_attachment_bytes,
+        )?,
     };
 
     let database = Database::parse_with_limits(data, key, engine_limits)
@@ -114,9 +116,9 @@ fn map_engine_error(error: DatabaseOpenError, limits: KdbxOpenLimits) -> KdbxOpe
         ) => KdbxOpenError::DecompressedPayloadTooLarge {
             max: limits.max_decompressed_payload_bytes,
         },
-        DatabaseOpenError::ResourceLimit(
-            DatabaseResourceLimitError::DecompressedBinaryBytes { .. },
-        ) => KdbxOpenError::AttachmentTooLarge {
+        DatabaseOpenError::ResourceLimit(DatabaseResourceLimitError::DecompressedBinaryBytes {
+            ..
+        }) => KdbxOpenError::AttachmentTooLarge {
             max: limits.post_decrypt.max_attachment_bytes,
         },
         DatabaseOpenError::ResourceLimit(
