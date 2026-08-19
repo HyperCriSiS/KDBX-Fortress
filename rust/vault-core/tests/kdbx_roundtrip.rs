@@ -189,10 +189,8 @@ fn explicit_41_migration_attachments_and_custom_data_preserves_bytes_and_metadat
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
     ))?;
-    let database = migrate_to_41_round_trip_password_fixture(
-        &bytes,
-        "attachments-custom-data-41.kdbx",
-    )?;
+    let database =
+        migrate_to_41_round_trip_password_fixture(&bytes, "attachments-custom-data-41.kdbx")?;
 
     assert_eq!(database.num_attachments(), 2);
     assert!(matches!(
