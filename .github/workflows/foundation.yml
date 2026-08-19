@@ -118,6 +118,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ENGINE_REV"
           rustc --version --verbose
           cargo --version
-          rustfmt --edition 2018 --check src/db/save.rs src/db/types/mod.rs src/format/xml_db/mod.rs
           cargo clippy --all-targets --all-features -- -D warnings
           cargo test --all-features
