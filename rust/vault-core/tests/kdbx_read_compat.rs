@@ -2,7 +2,7 @@ use std::error::Error;
 use std::io::Error as IoError;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use kdbx_fortress_vault_core::{KdbxPostDecryptLimits, validate_decrypted_database};
+use kdbx_fortress_vault_core::{KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptLimits, open_kdbx_bounded};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
@@ -11,20 +11,13 @@ use keepass::{
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
 
-fn validate_fixture_database(database: Database) -> Result<Database, Box<dyn Error>> {
-    validate_decrypted_database(&database, KdbxPostDecryptLimits::default())
-        .map_err(|error| IoError::other(format!("post-decrypt validation failed: {error:?}")))?;
-    Ok(database)
-}
-
 fn open_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
-    let mut source = bytes;
-    let database = Database::open(
-        &mut source,
+    open_kdbx_bounded(
+        bytes,
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+        KdbxOpenLimits::default(),
     )
-    .map_err(|error| IoError::other(error.to_string()))?;
-    validate_fixture_database(database)
+    .map_err(|error| IoError::other(format!("bounded KDBX open failed: {error:?}")).into())
 }
 
 fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
@@ -32,6 +25,74 @@ fn open_base64_fixture(encoded: &str) -> Result<Database, Box<dyn Error>> {
         .decode(encoded.trim())
         .map_err(|error| IoError::other(error.to_string()))?;
     open_fixture(&bytes)
+}
+
+#[test]
+fn bounded_open_rejects_kdbx4_payload_expansion_over_limit() {
+    let limits = KdbxOpenLimits {
+        max_decompressed_payload_bytes: 32,
+        ..KdbxOpenLimits::default()
+    };
+
+    let error = open_kdbx_bounded(
+        include_bytes!("../../../test-fixtures/kdbx/basic-kdbx4.kdbx"),
+        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+        limits,
+    )
+    .expect_err("KDBX4 payload expansion above the configured limit must be rejected");
+
+    assert_eq!(
+        error,
+        KdbxOpenError::DecompressedPayloadTooLarge { max: 32 }
+    );
+}
+
+#[test]
+fn bounded_open_rejects_kdbx3_payload_expansion_over_limit() -> Result<(), Box<dyn Error>> {
+    let bytes = STANDARD.decode(
+        include_str!("../../../test-fixtures/kdbx/kdbx3-aes-aeskdf-basic.kdbx.b64").trim(),
+    )?;
+    let limits = KdbxOpenLimits {
+        max_decompressed_payload_bytes: 32,
+        ..KdbxOpenLimits::default()
+    };
+
+    let error = open_kdbx_bounded(
+        &bytes,
+        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+        limits,
+    )
+    .expect_err("KDBX3 payload expansion above the configured limit must be rejected");
+
+    assert_eq!(
+        error,
+        KdbxOpenError::DecompressedPayloadTooLarge { max: 32 }
+    );
+    Ok(())
+}
+
+#[test]
+fn bounded_open_rejects_attachment_materialization_over_limit() -> Result<(), Box<dyn Error>> {
+    let bytes = STANDARD.decode(
+        include_str!("../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64").trim(),
+    )?;
+    let limits = KdbxOpenLimits {
+        post_decrypt: KdbxPostDecryptLimits {
+            max_attachment_bytes: 4,
+            ..KdbxPostDecryptLimits::default()
+        },
+        ..KdbxOpenLimits::default()
+    };
+
+    let error = open_kdbx_bounded(
+        &bytes,
+        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+        limits,
+    )
+    .expect_err("attachment materialization above the configured limit must be rejected");
+
+    assert_eq!(error, KdbxOpenError::AttachmentTooLarge { max: 4 });
+    Ok(())
 }
 
 #[test]
