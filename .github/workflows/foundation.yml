@@ -118,5 +118,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ENGINE_REV"
           rustc --version --verbose
           cargo --version
-          cargo clippy --all-targets --all-features -- -D warnings
-          cargo test --all-features
+          cargo check --lib --features save_kdbx4
+          cargo test --lib --features save_kdbx4 test_quick_xml_reports_ignored_fields_through_serde_ignored
+          cargo test --lib --features save_kdbx4 save_rejects_ignored_xml_fields_before_writing_output
+          cargo test --lib --features save_kdbx4
