@@ -1,5 +1,7 @@
 use std::error::Error;
+use std::fs;
 use std::io::{Cursor, Error as IoError};
+use std::path::PathBuf;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use kdbx_fortress_vault_core::{KdbxOpenLimits, open_kdbx_bounded};
@@ -10,6 +12,25 @@ use keepass::{
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
+
+fn interop_output_dir() -> Result<Option<PathBuf>, Box<dyn Error>> {
+    let Some(path) = std::env::var_os("FORTRESS_INTEROP_OUTPUT_DIR") else {
+        return Ok(None);
+    };
+
+    let path = PathBuf::from(path);
+    fs::create_dir_all(&path)?;
+    Ok(Some(path))
+}
+
+fn maybe_write_interop_artifact(name: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    let Some(output_dir) = interop_output_dir()? else {
+        return Ok(());
+    };
+
+    fs::write(output_dir.join(name), bytes)?;
+    Ok(())
+}
 
 fn decode_fixture(encoded: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     STANDARD
@@ -39,12 +60,16 @@ fn explicitly_upgrade_kdbx40_to_41(mut database: Database) -> Result<Database, B
     Ok(database)
 }
 
-fn migrate_to_41_round_trip_password_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
+fn migrate_to_41_round_trip_password_fixture(
+    bytes: &[u8],
+    interop_artifact_name: &str,
+) -> Result<Database, Box<dyn Error>> {
     let database = explicitly_upgrade_kdbx40_to_41(open_password_fixture(bytes)?)?;
     let mut serialized = Vec::new();
     database
         .save(&mut serialized, password_key())
         .map_err(|error| IoError::other(format!("KDBX 4.1 save failed: {error}")))?;
+    maybe_write_interop_artifact(interop_artifact_name, &serialized)?;
     let reopened = open_password_fixture(&serialized)?;
     assert_eq!(reopened.config.version, DatabaseVersion::KDB4(1));
     Ok(reopened)
@@ -90,7 +115,7 @@ fn explicit_41_migration_argon2id_aes_preserves_crypto_and_entry_semantics()
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64"
     ))?;
-    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
+    let database = migrate_to_41_round_trip_password_fixture(&bytes, "argon2id-aes-41.kdbx")?;
 
     assert!(matches!(
         database.config.kdf_config,
@@ -114,7 +139,7 @@ fn explicit_41_migration_argon2id_chacha20_preserves_crypto_and_entry_semantics(
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-argon2id-chacha20.kdbx.b64"
     ))?;
-    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
+    let database = migrate_to_41_round_trip_password_fixture(&bytes, "argon2id-chacha20-41.kdbx")?;
 
     assert!(matches!(
         database.config.kdf_config,
@@ -134,9 +159,10 @@ fn explicit_41_migration_argon2id_chacha20_preserves_crypto_and_entry_semantics(
 
 #[test]
 fn explicit_41_migration_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Error>> {
-    let database = migrate_to_41_round_trip_password_fixture(include_bytes!(
-        "../../../test-fixtures/kdbx/unicode-kdbx4.kdbx"
-    ))?;
+    let database = migrate_to_41_round_trip_password_fixture(
+        include_bytes!("../../../test-fixtures/kdbx/unicode-kdbx4.kdbx"),
+        "unicode-41.kdbx",
+    )?;
 
     let root = database.root();
     let group = root
@@ -163,7 +189,10 @@ fn explicit_41_migration_attachments_and_custom_data_preserves_bytes_and_metadat
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
     ))?;
-    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
+    let database = migrate_to_41_round_trip_password_fixture(
+        &bytes,
+        "attachments-custom-data-41.kdbx",
+    )?;
 
     assert_eq!(database.num_attachments(), 2);
     assert!(matches!(
@@ -241,6 +270,7 @@ fn explicit_41_migration_composite_password_and_raw32_keyfile_remains_required()
     database
         .save(&mut serialized, make_key()?)
         .map_err(|error| IoError::other(format!("KDBX 4.1 save failed: {error}")))?;
+    maybe_write_interop_artifact("composite-key-41.kdbx", &serialized)?;
 
     let reopened = open_kdbx_bounded(&serialized, make_key()?, KdbxOpenLimits::default())
         .map_err(|error| IoError::other(format!("bounded KDBX reopen failed: {error:?}")))?;

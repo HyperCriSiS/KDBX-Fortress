@@ -34,7 +34,7 @@ jobs:
   rust-core:
     name: Rust vault-core
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Check out source
@@ -55,7 +55,41 @@ jobs:
         run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
 
       - name: Unit tests
+        env:
+          FORTRESS_INTEROP_OUTPUT_DIR: ${{ runner.temp }}/kdbx-interop
         run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets
+
+      - name: Install KeePassXC reference CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes keepassxc
+          keepassxc-cli --version
+
+      - name: Reopen Fortress KDBX 4.1 outputs with KeePassXC
+        env:
+          FIXTURE_PASSWORD: fixture-password
+          INTEROP_DIR: ${{ runner.temp }}/kdbx-interop
+        run: |
+          set -euo pipefail
+
+          password_databases=(
+            argon2id-aes-41.kdbx
+            argon2id-chacha20-41.kdbx
+            unicode-41.kdbx
+            attachments-custom-data-41.kdbx
+          )
+
+          for database in "${password_databases[@]}"; do
+            test -s "$INTEROP_DIR/$database"
+            printf '%s\n' "$FIXTURE_PASSWORD" | \
+              keepassxc-cli db-info "$INTEROP_DIR/$database" >/dev/null
+          done
+
+          test -s "$INTEROP_DIR/composite-key-41.kdbx"
+          printf '%s\n' "$FIXTURE_PASSWORD" | \
+            keepassxc-cli db-info \
+              -k test-fixtures/kdbx/kdbx4-composite-key.raw32.key \
+              "$INTEROP_DIR/composite-key-41.kdbx" >/dev/null
 
       - name: Add Android Rust targets
         run: rustup target add aarch64-linux-android x86_64-linux-android
