@@ -47,6 +47,8 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
     - [x] Decide and document the supported write policy for KDBX 4.0 versus explicit KDBX 4.1 migration in `docs/KDBX_WRITE_POLICY.md`: initial production writes target KDBX 4.1 only; KDBX 4.0 remains read-only unless the user deliberately invokes a separately validated migration, and ordinary Save must never perform a silent minor-version upgrade.
     - [x] Resolve/scope KDBX 3 write support for the initial write envelope: KDBX 3.1 remains bounded read-only; no implicit KDBX 3 → 4.1 conversion substitutes for the pinned engine's lack of KDBX 3 serialization.
     - [ ] Complete the remaining semantic-preservation matrix, including history and unknown/preservable metadata behavior.
+      - [x] Preserve entry history across explicit KDBX 4.1 serialization/reopen, including protected password state and non-nested historical snapshots; include the produced history database in the independent KeePassXC reopen gate.
+      - [ ] Characterize and safely handle unknown/not-yet-modeled XML metadata so production writing can never silently discard extension or newer-minor-version state.
     - [ ] Reopen Fortress-produced outputs with independent KeePass and KeePassXC reference tools before any production write API is enabled.
       - [x] Emit representative serializer outputs from the existing KDBX 4.1 characterization tests and reopen password-only plus password/key-file outputs with `keepassxc-cli` in Foundation CI.
       - [ ] Add a reproducible KeePass 2.x/KPScript reopening check for representative Fortress-produced KDBX 4.1 outputs.
@@ -217,7 +219,7 @@ There is no known external organizational blocker and no open GitHub issue curre
 
 ## Next prioritized work
 
-1. [ ] Complete the remaining round-trip/interoperability gate: add history plus unknown/preservable-metadata cases and a reproducible KeePass 2.x/KPScript reopen check; keep the new KDBX 4.1-only write policy enforced.
+1. [ ] Complete the remaining round-trip/interoperability gate: characterize/block silent loss of unknown/preservable metadata and add a reproducible KeePass 2.x/KPScript reopen check; keep the KDBX 4.1-only write policy enforced.
 2. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics, unbounded allocation or format regressions.
 3. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.
 4. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.
