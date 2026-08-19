@@ -2,8 +2,9 @@ use std::error::Error;
 use std::io::{Cursor, Error as IoError};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use kdbx_fortress_vault_core::{KdbxOpenLimits, open_kdbx_bounded};
 use keepass::{
-    Database, DatabaseKey,
+    DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
 };
 
@@ -50,9 +51,12 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
     let fixture = fixture_bytes()?;
     let password = fixture_password()?;
 
-    let mut source = fixture.as_slice();
-    let db = Database::open(&mut source, composite_key(password, KEYFILE)?)
-        .map_err(|error| IoError::other(error.to_string()))?;
+    let db = open_kdbx_bounded(
+        &fixture,
+        composite_key(password, KEYFILE)?,
+        KdbxOpenLimits::default(),
+    )
+    .map_err(|error| IoError::other(format!("bounded KDBX open failed: {error:?}")))?;
 
     assert!(matches!(
         db.config.kdf_config,
@@ -80,33 +84,44 @@ fn composite_password_and_raw32_keyfile_is_required() -> Result<(), Box<dyn Erro
     assert_eq!(entry.get_password(), Some("fixture-secret"));
     assert_eq!(entry.get_url(), Some("https://example.test"));
 
-    let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, DatabaseKey::new().with_password(password)).is_err(),
+        open_kdbx_bounded(
+            &fixture,
+            DatabaseKey::new().with_password(password),
+            KdbxOpenLimits::default(),
+        )
+        .is_err(),
         "password without required keyfile must be rejected"
     );
 
     let mut wrong_keyfile = KEYFILE.to_vec();
     wrong_keyfile[0] ^= 0x01;
-    let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, composite_key(password, &wrong_keyfile)?).is_err(),
+        open_kdbx_bounded(
+            &fixture,
+            composite_key(password, &wrong_keyfile)?,
+            KdbxOpenLimits::default(),
+        )
+        .is_err(),
         "wrong keyfile must be rejected"
     );
 
     let mut wrong_password = password.as_bytes().to_vec();
     wrong_password[0] ^= 0x01;
     let wrong_password = String::from_utf8(wrong_password)?;
-    let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, composite_key(&wrong_password, KEYFILE)?).is_err(),
+        open_kdbx_bounded(
+            &fixture,
+            composite_key(&wrong_password, KEYFILE)?,
+            KdbxOpenLimits::default(),
+        )
+        .is_err(),
         "wrong password must be rejected even with correct keyfile"
     );
 
     let keyfile_only = DatabaseKey::new().with_keyfile(&mut Cursor::new(KEYFILE.as_slice()))?;
-    let mut source = fixture.as_slice();
     assert!(
-        Database::open(&mut source, keyfile_only).is_err(),
+        open_kdbx_bounded(&fixture, keyfile_only, KdbxOpenLimits::default()).is_err(),
         "keyfile without required password must be rejected"
     );
 
