@@ -2,7 +2,9 @@ use std::error::Error;
 use std::io::Error as IoError;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use kdbx_fortress_vault_core::{KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptLimits, open_kdbx_bounded};
+use kdbx_fortress_vault_core::{
+    KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptLimits, open_kdbx_bounded,
+};
 use keepass::{
     Database, DatabaseKey,
     config::{KdfConfig, OuterCipherConfig},
