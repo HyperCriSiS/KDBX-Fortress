@@ -21,7 +21,8 @@ jobs:
           ref: test/kdbx4-roundtrip-harness
       - name: Use pinned Rust toolchain
         run: rustup show
-      - name: Format workspace
+      - name: Format vault core
+        working-directory: rust/vault-core
         run: cargo fmt --all
       - name: Commit formatter output
         run: |
