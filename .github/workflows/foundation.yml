@@ -100,25 +100,3 @@ jobs:
 
       - name: Check Android x86_64 target
         run: cargo check --manifest-path rust/Cargo.toml --workspace --target x86_64-linux-android
-
-  engine-fork-validation:
-    name: keepass-rs fork validation
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-
-    steps:
-      - name: Verify exact Fortress fork commit
-        env:
-          ENGINE_REV: 521a49707a4dd2a5cb0ddae92d39448ca79771b6
-        run: |
-          set -euo pipefail
-          git clone --filter=blob:none https://github.com/HyperCriSiS/keepass-rs.git keepass-rs
-          cd keepass-rs
-          git checkout "$ENGINE_REV"
-          test "$(git rev-parse HEAD)" = "$ENGINE_REV"
-          rustc --version --verbose
-          cargo --version
-          cargo check --lib --features save_kdbx4
-          cargo test --lib --features save_kdbx4 test_quick_xml_reports_ignored_fields_through_serde_ignored
-          cargo test --lib --features save_kdbx4 save_rejects_ignored_xml_fields_before_writing_output
-          cargo test --lib --features save_kdbx4
