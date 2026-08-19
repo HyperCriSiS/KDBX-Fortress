@@ -77,6 +77,7 @@ jobs:
             argon2id-chacha20-41.kdbx
             unicode-41.kdbx
             attachments-custom-data-41.kdbx
+            history-41.kdbx
           )
 
           for database in "${password_databases[@]}"; do

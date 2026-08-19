@@ -8,7 +8,7 @@ use kdbx_fortress_vault_core::{KdbxOpenLimits, open_kdbx_bounded};
 use keepass::{
     Database, DatabaseKey,
     config::{DatabaseVersion, KdfConfig, OuterCipherConfig},
-    db::CustomDataValue,
+    db::{CustomDataValue, fields},
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
@@ -285,4 +285,84 @@ fn explicit_41_migration_composite_password_and_raw32_keyfile_remains_required()
         "migrated composite-key database must still reject password-only access"
     );
     Ok(())
+}
+
+#[test]
+fn explicit_41_migration_history_preserves_snapshot_values_and_protection()
+-> Result<(), Box<dyn Error>> {
+    let bytes = decode_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64"
+    ))?;
+    let mut database = explicitly_upgrade_kdbx40_to_41(open_password_fixture(&bytes)?)?;
+
+    {
+        let mut root = database.root_mut();
+        let mut group = root
+            .group_by_path_mut(&["Synthetic"])
+            .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
+        let mut entry = group
+            .entry_by_name_mut("Example Login")
+            .ok_or_else(|| IoError::other("Example Login entry must exist"))?;
+
+        entry.edit_tracking(|tracked| {
+            tracked.set_unprotected(fields::USERNAME, "updated-user");
+            tracked.set_protected(fields::PASSWORD, "updated-secret");
+            tracked.set_unprotected("HistoryMarker", "current-value");
+        });
+    }
+
+    let assert_history = |database: &Database| -> Result<(), Box<dyn Error>> {
+        let root = database.root();
+        let group = root
+            .group_by_path(&["Synthetic"])
+            .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
+        let entry = group
+            .entry_by_name("Example Login")
+            .ok_or_else(|| IoError::other("Example Login entry must exist"))?;
+
+        assert_eq!(entry.get_username(), Some("updated-user"));
+        assert_eq!(entry.get_password(), Some("updated-secret"));
+        assert_eq!(entry.get("HistoryMarker"), Some("current-value"));
+        assert!(
+            entry
+                .fields
+                .get(fields::PASSWORD)
+                .is_some_and(|value| value.is_protected()),
+            "current password must remain protected"
+        );
+
+        let history = entry
+            .history
+            .as_ref()
+            .ok_or_else(|| IoError::other("entry history must exist"))?;
+        assert_eq!(history.get_entries().len(), 1);
+        let previous = &history.get_entries()[0];
+        assert_eq!(previous.get_username(), Some("fixture-user"));
+        assert_eq!(previous.get_password(), Some("fixture-secret"));
+        assert_eq!(previous.get("HistoryMarker"), None);
+        assert!(
+            previous
+                .fields
+                .get(fields::PASSWORD)
+                .is_some_and(|value| value.is_protected()),
+            "historical password must remain protected"
+        );
+        assert!(
+            previous.history.is_none(),
+            "history snapshots must not nest history"
+        );
+        Ok(())
+    };
+
+    assert_history(&database)?;
+
+    let mut serialized = Vec::new();
+    database
+        .save(&mut serialized, password_key())
+        .map_err(|error| IoError::other(format!("KDBX 4.1 save failed: {error}")))?;
+    maybe_write_interop_artifact("history-41.kdbx", &serialized)?;
+
+    let reopened = open_password_fixture(&serialized)?;
+    assert_eq!(reopened.config.version, DatabaseVersion::KDB4(1));
+    assert_history(&reopened)
 }
