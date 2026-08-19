@@ -14,3 +14,4 @@ keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "d6f224f727
 
 [dev-dependencies]
 base64 = "=0.22.1"
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "d6f224f7275213bfefaac3084035d877d700f39d", default-features = false, features = ["save_kdbx4"] }
