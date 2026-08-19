@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-keepass = { version = "=0.13.18", default-features = false }
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "2af29118b006d916ba829208e9a1427b2d8c5e8f", default-features = false }
 
 [dev-dependencies]
 base64 = "=0.22.1"
