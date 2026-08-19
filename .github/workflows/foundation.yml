@@ -112,16 +112,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Generate Fortress KDBX 4.1 reference outputs
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $env:FORTRESS_INTEROP_OUTPUT_DIR = Join-Path $env:RUNNER_TEMP 'kdbx-interop'
-          New-Item -ItemType Directory -Force -Path $env:FORTRESS_INTEROP_OUTPUT_DIR | Out-Null
-          rustc --version --verbose
-          cargo --version
-          cargo test --manifest-path rust/Cargo.toml --package kdbx-fortress-vault-core --test kdbx_roundtrip
-
       - name: Download and verify pinned KeePass reference tools
         shell: pwsh
         run: |
@@ -133,7 +123,7 @@ jobs:
           $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
           $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
 
-          Invoke-WebRequest -Uri 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download' -OutFile $keepassZip
+          Invoke-WebRequest -Uri 'https://downloads.sourceforge.net/project/keepass/KeePass%202.x/2.61.1/KeePass-2.61.1.zip' -OutFile $keepassZip
           Invoke-WebRequest -Uri 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' -OutFile $kpscriptZip
 
           function Assert-ReferencePackage {
@@ -169,6 +159,16 @@ jobs:
 
           Copy-Item -LiteralPath $kpscriptExe.FullName -Destination $keepassExe.Directory.FullName
           "KEEPASS_REFERENCE_DIR=$($keepassExe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Generate Fortress KDBX 4.1 reference outputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:FORTRESS_INTEROP_OUTPUT_DIR = Join-Path $env:RUNNER_TEMP 'kdbx-interop'
+          New-Item -ItemType Directory -Force -Path $env:FORTRESS_INTEROP_OUTPUT_DIR | Out-Null
+          rustc --version --verbose
+          cargo --version
+          cargo test --manifest-path rust/Cargo.toml --package kdbx-fortress-vault-core --test kdbx_roundtrip
 
       - name: Reopen Fortress outputs with KeePass 2.x / KPScript
         shell: pwsh
