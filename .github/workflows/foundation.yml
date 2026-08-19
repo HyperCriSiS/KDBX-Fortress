@@ -100,3 +100,129 @@ jobs:
 
       - name: Check Android x86_64 target
         run: cargo check --manifest-path rust/Cargo.toml --workspace --target x86_64-linux-android
+
+  keepass2-reference:
+    name: KeePass 2.x / KPScript interoperability
+    runs-on: windows-2025
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate Fortress KDBX 4.1 reference outputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:FORTRESS_INTEROP_OUTPUT_DIR = Join-Path $env:RUNNER_TEMP 'kdbx-interop'
+          New-Item -ItemType Directory -Force -Path $env:FORTRESS_INTEROP_OUTPUT_DIR | Out-Null
+          rustc --version --verbose
+          cargo --version
+          cargo test --manifest-path rust/Cargo.toml --package kdbx-fortress-vault-core --test kdbx_roundtrip
+
+      - name: Download and verify pinned KeePass reference tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $toolsDir = Join-Path $env:RUNNER_TEMP 'keepass-reference'
+          New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+
+          $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
+          $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
+
+          Invoke-WebRequest \
+            -Uri 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download' \
+            -OutFile $keepassZip
+          Invoke-WebRequest \
+            -Uri 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' \
+            -OutFile $kpscriptZip
+
+          function Assert-ReferencePackage {
+            param(
+              [Parameter(Mandatory = $true)][string]$Path,
+              [Parameter(Mandatory = $true)][long]$ExpectedSize,
+              [Parameter(Mandatory = $true)][string]$ExpectedSha256
+            )
+
+            $item = Get-Item -LiteralPath $Path
+            if ($item.Length -ne $ExpectedSize) {
+              throw "Unexpected package size for $($item.Name): $($item.Length) != $ExpectedSize"
+            }
+
+            $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+            if ($actualSha256 -ne $ExpectedSha256) {
+              throw "SHA-256 mismatch for $($item.Name): $actualSha256"
+            }
+          }
+
+          Assert-ReferencePackage \
+            -Path $keepassZip \
+            -ExpectedSize 2898806 \
+            -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
+          Assert-ReferencePackage \
+            -Path $kpscriptZip \
+            -ExpectedSize 24707 \
+            -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
+
+          $keepassDir = Join-Path $toolsDir 'keepass'
+          $kpscriptDir = Join-Path $toolsDir 'kpscript'
+          Expand-Archive -LiteralPath $keepassZip -DestinationPath $keepassDir
+          Expand-Archive -LiteralPath $kpscriptZip -DestinationPath $kpscriptDir
+
+          $keepassExe = Get-ChildItem -Path $keepassDir -Filter 'KeePass.exe' -Recurse | Select-Object -First 1
+          $kpscriptExe = Get-ChildItem -Path $kpscriptDir -Filter 'KPScript.exe' -Recurse | Select-Object -First 1
+          if (-not $keepassExe) { throw 'KeePass.exe missing from verified portable package' }
+          if (-not $kpscriptExe) { throw 'KPScript.exe missing from verified package' }
+
+          Copy-Item -LiteralPath $kpscriptExe.FullName -Destination $keepassExe.Directory.FullName
+          "KEEPASS_REFERENCE_DIR=$($keepassExe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Reopen Fortress outputs with KeePass 2.x / KPScript
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $kpscript = Join-Path $env:KEEPASS_REFERENCE_DIR 'KPScript.exe'
+          $interopDir = Join-Path $env:RUNNER_TEMP 'kdbx-interop'
+          $fixturePassword = 'fixture-password'
+
+          $passwordDatabases = @(
+            'argon2id-aes-41.kdbx',
+            'argon2id-chacha20-41.kdbx',
+            'unicode-41.kdbx',
+            'attachments-custom-data-41.kdbx',
+            'history-41.kdbx'
+          )
+
+          foreach ($databaseName in $passwordDatabases) {
+            $database = Join-Path $interopDir $databaseName
+            if (-not (Test-Path -LiteralPath $database -PathType Leaf)) {
+              throw "Missing Fortress interoperability output: $databaseName"
+            }
+
+            $kpArgs = @('-c:ListEntries', $database, "-pw:$fixturePassword")
+            & $kpscript @kpArgs *> $null
+            if ($LASTEXITCODE -ne 0) {
+              throw "KeePass/KPScript failed to reopen $databaseName (exit $LASTEXITCODE)"
+            }
+          }
+
+          $compositeDatabase = Join-Path $interopDir 'composite-key-41.kdbx'
+          $keyFile = Join-Path $env:GITHUB_WORKSPACE 'test-fixtures\kdbx\kdbx4-composite-key.raw32.key'
+          if (-not (Test-Path -LiteralPath $compositeDatabase -PathType Leaf)) {
+            throw 'Missing Fortress composite-key interoperability output'
+          }
+
+          $compositeArgs = @(
+            '-c:ListEntries',
+            $compositeDatabase,
+            "-pw:$fixturePassword",
+            "-keyfile:$keyFile"
+          )
+          & $kpscript @compositeArgs *> $null
+          if ($LASTEXITCODE -ne 0) {
+            throw "KeePass/KPScript failed to reopen composite-key-41.kdbx (exit $LASTEXITCODE)"
+          }
