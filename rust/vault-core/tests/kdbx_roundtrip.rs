@@ -124,8 +124,8 @@ fn round_trip_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata() -> Result<(), Box<dyn Error>>
-{
+fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata()
+-> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
     ))?;
