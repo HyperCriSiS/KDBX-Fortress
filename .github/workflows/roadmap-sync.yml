@@ -1,0 +1,80 @@
+name: Roadmap sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: test/keepass2-kpscript-reopen
+
+      - name: Synchronize Phase 0 documentation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          roadmap = Path('ROADMAP.md')
+          text = roadmap.read_text()
+          replacements = {
+              'Status: **Phase 0 in progress; the bounded read-only KDBX path enforces the required pre-decrypt, decompression/attachment-expansion and post-decrypt resource budgets, KDBX4 test serialization is guarded against silent minor-version and unknown-XML loss, and write support now remains blocked primarily on the KeePass 2.x reference gate plus remaining corpus/API/memory-hygiene work.**':
+                  'Status: **Phase 0 in progress; the bounded read-only KDBX path enforces the required resource budgets, KDBX4 test serialization is guarded against silent minor-version and unknown-XML loss, and both independent KeePassXC and KeePass 2.x/KPScript reopen gates are automated. Remaining Phase 0 blockers are the accepted-corpus gaps plus stable API and memory-hygiene work.**',
+              'Repository base before this roadmap update: `main` at `f1cc636212bbadd07e7d3e6047a82e3877cc138b`.':
+                  'Repository base before this roadmap update: `main` at `5832e1bd884c695eccb62c8003a717dc5bfc4a1f`.',
+              '  - [ ] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.':
+                  '  - [x] Add executable round-trip/interoperability tests before enabling write support, including independent reference-tool validation and semantic-preservation assertions.',
+              '    - [ ] Complete the remaining semantic-preservation matrix, including history and unknown/preservable metadata behavior.':
+                  '    - [x] Complete the remaining semantic-preservation matrix, including history and unknown/preservable metadata behavior.',
+              '    - [ ] Reopen Fortress-produced outputs with independent KeePass and KeePassXC reference tools before any production write API is enabled.':
+                  '    - [x] Reopen Fortress-produced outputs with independent KeePass and KeePassXC reference tools before any production write API is enabled.',
+              '      - [ ] Add a reproducible KeePass 2.x/KPScript reopening check for representative Fortress-produced KDBX 4.1 outputs.':
+                  '      - [x] Reopen representative Fortress-produced KDBX 4.1 outputs with pinned KeePass 2.61.1/KPScript 2.61.1 on Windows CI after verifying official package sizes and SHA-256 hashes, including password-only and password + raw-32-byte-key-file credentials.',
+              '1. **Write support is blocked on the remaining independent reference-tool/corpus validation.** The version policy is explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation and unknown-XML fail-closed handling are covered; KeePassXC reopening is automated in Foundation CI. A reproducible KeePass 2.x/KPScript reopen gate plus the remaining accepted fixture/corpus gaps are still required.':
+                  '1. **Write support is blocked on the remaining accepted fixture/corpus validation, not reference-tool coverage.** The version policy is explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation, unknown-XML fail-closed handling, KeePassXC reopening and pinned KeePass 2.x/KPScript reopening are automated; the remaining accepted fixture/corpus gaps must still be closed before production writing is considered.',
+              '1. [ ] Complete the remaining round-trip/interoperability gate by adding a reproducible KeePass 2.x/KPScript reopen check; keep the KDBX 4.1-only write policy and ignored-XML fail-closed save gate enforced.\n2. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics, unbounded allocation or format regressions.\n3. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.\n4. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.':
+                  '1. [ ] Close remaining accepted fixture-matrix gaps and run the full engine/adapter corpus without panics, unbounded allocation or format regressions.\n2. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.\n3. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'ROADMAP replacement target missing: {old[:100]}')
+              text = text.replace(old, new, 1)
+          roadmap.write_text(text)
+
+          policy = Path('docs/KDBX_WRITE_POLICY.md')
+          text = policy.read_text()
+          old = '- **KeePass 2.x**: an automated or otherwise reproducible independent reopening check is still required before production writing is enabled.'
+          new = '- **KeePass 2.x**: Foundation CI pins KeePass 2.61.1 and KPScript 2.61.1 by official package size/SHA-256, generates representative Fortress KDBX 4.1 outputs on Windows, and reopens password-only plus password/key-file outputs through KPScript.'
+          if old not in text:
+              raise SystemExit('KDBX_WRITE_POLICY KeePass 2.x target missing')
+          text = text.replace(old, new, 1)
+          old = 'The `save_kdbx4` engine feature remains test-only. The pinned engine now carries the ignored-XML diagnostic/fail-closed save gate, but production `keepass` dependency configuration remains read-only until the remaining reference-tool/corpus gates are complete and a reviewed production write API is introduced in a later phase.'
+          new = 'The `save_kdbx4` engine feature remains test-only. The pinned engine carries the ignored-XML diagnostic/fail-closed save gate, and both independent reference-family reopen checks are automated. Production `keepass` dependency configuration nevertheless remains read-only until the remaining accepted-corpus/API/memory-hygiene gates are complete and a reviewed production write API is introduced in a later phase.'
+          if old not in text:
+              raise SystemExit('KDBX_WRITE_POLICY implementation target missing')
+          text = text.replace(old, new, 1)
+          policy.write_text(text)
+
+          matrix = Path('docs/KDBX_COMPATIBILITY_MATRIX.md')
+          text = matrix.read_text()
+          anchor = 'Byte-for-byte equality is not required because salts/nonces and representation details may legitimately change. Logical equivalence and independent implementation interoperability are required.'
+          insertion = anchor + '\n\nAs of Phase 0, representative Fortress-produced KDBX 4.1 outputs are reopened automatically by both KeePassXC and pinned KeePass 2.61.1/KPScript 2.61.1 in Foundation CI; this reference-tool gate remains additive to the Fortress-owned semantic assertions.'
+          if anchor not in text:
+              raise SystemExit('compatibility-matrix insertion target missing')
+          text = text.replace(anchor, insertion, 1)
+          matrix.write_text(text)
+          PY
+
+      - name: Commit synchronized documentation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ROADMAP.md docs/KDBX_WRITE_POLICY.md docs/KDBX_COMPATIBILITY_MATRIX.md
+          git diff --cached --check
+          git commit -m "docs: complete independent KDBX reference-tool gate"
+          git push origin HEAD:test/keepass2-kpscript-reopen
