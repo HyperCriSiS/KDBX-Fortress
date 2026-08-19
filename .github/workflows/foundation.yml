@@ -133,12 +133,8 @@ jobs:
           $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
           $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
 
-          Invoke-WebRequest \
-            -Uri 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download' \
-            -OutFile $keepassZip
-          Invoke-WebRequest \
-            -Uri 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' \
-            -OutFile $kpscriptZip
+          Invoke-WebRequest -Uri 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download' -OutFile $keepassZip
+          Invoke-WebRequest -Uri 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' -OutFile $kpscriptZip
 
           function Assert-ReferencePackage {
             param(
@@ -158,14 +154,8 @@ jobs:
             }
           }
 
-          Assert-ReferencePackage \
-            -Path $keepassZip \
-            -ExpectedSize 2898806 \
-            -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
-          Assert-ReferencePackage \
-            -Path $kpscriptZip \
-            -ExpectedSize 24707 \
-            -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
+          Assert-ReferencePackage -Path $keepassZip -ExpectedSize 2898806 -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
+          Assert-ReferencePackage -Path $kpscriptZip -ExpectedSize 24707 -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
 
           $keepassDir = Join-Path $toolsDir 'keepass'
           $kpscriptDir = Join-Path $toolsDir 'kpscript'
