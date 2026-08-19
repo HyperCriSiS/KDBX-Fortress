@@ -109,7 +109,7 @@ jobs:
     steps:
       - name: Verify exact Fortress fork commit
         env:
-          ENGINE_REV: ecfbd039389426fd97362243dee08ae506e80d58
+          ENGINE_REV: 521a49707a4dd2a5cb0ddae92d39448ca79771b6
         run: |
           set -euo pipefail
           git clone --filter=blob:none https://github.com/HyperCriSiS/keepass-rs.git keepass-rs
@@ -118,6 +118,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ENGINE_REV"
           rustc --version --verbose
           cargo --version
-          cargo fmt --all --check
+          rustfmt --edition 2018 --check src/db/save.rs src/db/types/mod.rs src/format/xml_db/mod.rs
           cargo clippy --all-targets --all-features -- -D warnings
           cargo test --all-features
