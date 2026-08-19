@@ -218,3 +218,43 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "KeePass/KPScript failed to reopen composite-key-41.kdbx (exit $LASTEXITCODE)"
           }
+
+  empty-edge-fixture-generator:
+    name: Generate empty-edge fixture once
+    if: github.ref == 'refs/heads/test/kdbx-empty-edge-fixture'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: test/kdbx-empty-edge-fixture
+          persist-credentials: true
+
+      - name: Generate and commit fixture if missing
+        run: |
+          set -euo pipefail
+          fixture="test-fixtures/kdbx/kdbx4-empty-edge.kdbx"
+          if [ -f "$fixture" ]; then
+            echo "Fixture already exists; generator is a no-op."
+            exit 0
+          fi
+
+          export FORTRESS_FIXTURE_OUTPUT="$GITHUB_WORKSPACE/$fixture"
+          cargo test \
+            --manifest-path rust/Cargo.toml \
+            --package kdbx-fortress-vault-core \
+            --test generate_empty_edge_fixture \
+            -- --ignored --exact generate_kdbx4_empty_edge_fixture
+
+          test -s "$fixture"
+          sha256sum "$fixture"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$fixture"
+          git commit -m "test: materialize KDBX4 empty-edge fixture"
+          git push origin HEAD:test/kdbx-empty-edge-fixture
