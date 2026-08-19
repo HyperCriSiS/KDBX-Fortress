@@ -5,7 +5,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use kdbx_fortress_vault_core::{KdbxOpenLimits, open_kdbx_bounded};
 use keepass::{
     Database, DatabaseKey,
-    config::{KdfConfig, OuterCipherConfig},
+    config::{DatabaseVersion, KdfConfig, OuterCipherConfig},
     db::CustomDataValue,
 };
 
@@ -26,13 +26,28 @@ fn open_password_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
         .map_err(|error| IoError::other(format!("bounded KDBX open failed: {error:?}")).into())
 }
 
-fn round_trip_password_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
-    let database = open_password_fixture(bytes)?;
+fn explicitly_upgrade_kdbx40_to_41(mut database: Database) -> Result<Database, Box<dyn Error>> {
+    if database.config.version != DatabaseVersion::KDB4(0) {
+        return Err(IoError::other(format!(
+            "expected KDBX 4.0 fixture before explicit migration, got {}",
+            database.config.version
+        ))
+        .into());
+    }
+
+    database.config.version = DatabaseVersion::KDB4(1);
+    Ok(database)
+}
+
+fn migrate_to_41_round_trip_password_fixture(bytes: &[u8]) -> Result<Database, Box<dyn Error>> {
+    let database = explicitly_upgrade_kdbx40_to_41(open_password_fixture(bytes)?)?;
     let mut serialized = Vec::new();
     database
         .save(&mut serialized, password_key())
-        .map_err(|error| IoError::other(format!("KDBX save failed: {error}")))?;
-    open_password_fixture(&serialized)
+        .map_err(|error| IoError::other(format!("KDBX 4.1 save failed: {error}")))?;
+    let reopened = open_password_fixture(&serialized)?;
+    assert_eq!(reopened.config.version, DatabaseVersion::KDB4(1));
+    Ok(reopened)
 }
 
 fn assert_example_entry(database: &Database) -> Result<(), Box<dyn Error>> {
@@ -52,11 +67,30 @@ fn assert_example_entry(database: &Database) -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn round_trip_argon2id_aes_preserves_crypto_and_entry_semantics() -> Result<(), Box<dyn Error>> {
+fn serializer_rejects_kdbx40_without_an_explicit_version_migration() -> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64"
     ))?;
-    let database = round_trip_password_fixture(&bytes)?;
+    let database = open_password_fixture(&bytes)?;
+    assert_eq!(database.config.version, DatabaseVersion::KDB4(0));
+
+    let mut serialized = Vec::new();
+    let error = database
+        .save(&mut serialized, password_key())
+        .expect_err("the pinned serializer must not silently rewrite KDBX 4.0 as 4.1");
+
+    assert_eq!(error.to_string(), "Unsupported database version");
+    assert!(serialized.is_empty());
+    Ok(())
+}
+
+#[test]
+fn explicit_41_migration_argon2id_aes_preserves_crypto_and_entry_semantics()
+-> Result<(), Box<dyn Error>> {
+    let bytes = decode_fixture(include_str!(
+        "../../../test-fixtures/kdbx/kdbx4-argon2id-aes.kdbx.b64"
+    ))?;
+    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
 
     assert!(matches!(
         database.config.kdf_config,
@@ -75,12 +109,12 @@ fn round_trip_argon2id_aes_preserves_crypto_and_entry_semantics() -> Result<(), 
 }
 
 #[test]
-fn round_trip_argon2id_chacha20_preserves_crypto_and_entry_semantics() -> Result<(), Box<dyn Error>>
-{
+fn explicit_41_migration_argon2id_chacha20_preserves_crypto_and_entry_semantics()
+-> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-argon2id-chacha20.kdbx.b64"
     ))?;
-    let database = round_trip_password_fixture(&bytes)?;
+    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
 
     assert!(matches!(
         database.config.kdf_config,
@@ -99,8 +133,8 @@ fn round_trip_argon2id_chacha20_preserves_crypto_and_entry_semantics() -> Result
 }
 
 #[test]
-fn round_trip_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Error>> {
-    let database = round_trip_password_fixture(include_bytes!(
+fn explicit_41_migration_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Error>> {
+    let database = migrate_to_41_round_trip_password_fixture(include_bytes!(
         "../../../test-fixtures/kdbx/unicode-kdbx4.kdbx"
     ))?;
 
@@ -124,12 +158,12 @@ fn round_trip_unicode_preserves_utf8_values_exactly() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata()
+fn explicit_41_migration_attachments_and_custom_data_preserves_bytes_and_metadata()
 -> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-attachments-custom-data.kdbx.b64"
     ))?;
-    let database = round_trip_password_fixture(&bytes)?;
+    let database = migrate_to_41_round_trip_password_fixture(&bytes)?;
 
     assert_eq!(database.num_attachments(), 2);
     assert!(matches!(
@@ -185,8 +219,8 @@ fn round_trip_attachments_and_custom_data_preserves_bytes_and_metadata()
 }
 
 #[test]
-fn round_trip_composite_password_and_raw32_keyfile_remains_required() -> Result<(), Box<dyn Error>>
-{
+fn explicit_41_migration_composite_password_and_raw32_keyfile_remains_required()
+-> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-composite-key-keyfile.kdbx.b64"
     ))?;
@@ -202,13 +236,15 @@ fn round_trip_composite_password_and_raw32_keyfile_remains_required() -> Result<
 
     let database = open_kdbx_bounded(&bytes, make_key()?, KdbxOpenLimits::default())
         .map_err(|error| IoError::other(format!("bounded KDBX open failed: {error:?}")))?;
+    let database = explicitly_upgrade_kdbx40_to_41(database)?;
     let mut serialized = Vec::new();
     database
         .save(&mut serialized, make_key()?)
-        .map_err(|error| IoError::other(format!("KDBX save failed: {error}")))?;
+        .map_err(|error| IoError::other(format!("KDBX 4.1 save failed: {error}")))?;
 
     let reopened = open_kdbx_bounded(&serialized, make_key()?, KdbxOpenLimits::default())
         .map_err(|error| IoError::other(format!("bounded KDBX reopen failed: {error:?}")))?;
+    assert_eq!(reopened.config.version, DatabaseVersion::KDB4(1));
     assert_example_entry(&reopened)?;
 
     assert!(
@@ -218,7 +254,7 @@ fn round_trip_composite_password_and_raw32_keyfile_remains_required() -> Result<
             KdbxOpenLimits::default(),
         )
         .is_err(),
-        "round-tripped composite-key database must still reject password-only access"
+        "migrated composite-key database must still reject password-only access"
     );
     Ok(())
 }
