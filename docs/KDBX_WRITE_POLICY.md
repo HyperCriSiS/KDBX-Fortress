@@ -52,7 +52,10 @@ Therefore the Phase 0 KDBX 3 write-support question is explicitly scoped as **re
 Unknown or not-yet-proven metadata must bias toward preservation and read-only behavior:
 
 - unknown data must never be silently dropped merely because the visible entry fields are understood;
-- if the selected engine cannot round-trip a field/element that may carry user or extension state, Fortress must block writing that vault until the behavior is explicitly accepted or a preserving adapter exists;
+- the pinned Fortress `keepass-rs` fork keeps XML parsing tolerant for reads, but records Serde paths for XML fields that are not modeled by the current object model;
+- any non-empty ignored-XML path set makes the database ineligible for serialization: the engine returns `UnpreservedXmlFields` before writing any output bytes;
+- the ignored values themselves are not claimed to be preserved; therefore a future production UI must surface the vault as read-only rather than offering a lossy Save;
+- if a later adapter learns to preserve a previously ignored field, that field may leave the read-only set only after explicit round-trip/reference-tool coverage is added;
 - KDBX 4.1 features such as custom-data modification times, group tags and other minor-version additions belong in the preservation matrix before they are writable;
 - byte-for-byte equality is not required where salts, nonces or equivalent representation details are expected to change, but logical semantics must remain equivalent.
 
@@ -67,7 +70,7 @@ Reference-tool success is an additional gate; it does not replace Fortress-owned
 
 ## Current implementation consequence
 
-The `save_kdbx4` engine feature remains test-only. Production `keepass` dependency configuration remains read-only until the remaining preservation/reference gates are complete and a reviewed production write API is introduced in a later phase.
+The `save_kdbx4` engine feature remains test-only. The pinned engine now carries the ignored-XML diagnostic/fail-closed save gate, but production `keepass` dependency configuration remains read-only until the remaining reference-tool/corpus gates are complete and a reviewed production write API is introduced in a later phase.
 
 ## Compatibility rationale
 

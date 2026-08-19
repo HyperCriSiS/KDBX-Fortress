@@ -55,7 +55,7 @@ The first integration gate is executable parsing of project-owned deterministic 
 - truncated headers are rejected;
 - invalid KDBX signatures are rejected.
 
-This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Remaining Phase 0 engine validation is dominated by resource-budget hardening and independent round-trip/reference-tool preservation gates before production open/write support can be considered.
+This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Fortress-owned pre-decrypt, decompression/binary-expansion and post-decrypt structure budgets are now enforced. Remaining Phase 0 engine validation is dominated by the remaining fixture/corpus gaps, independent reference-tool coverage and the stable API/memory-hygiene gates before production open/write support can be considered.
 
 ### Keyfile-format note
 
@@ -65,7 +65,7 @@ The pinned `keepass = 0.13.18` parser accepts raw 32-byte, 64-character hexadeci
 
 Upstream writing is explicitly feature-gated as KDBX4-only. Its `Database::save` rejects KDB/KDBX2/KDBX3 database versions.
 
-More importantly, a password manager must not infer round-trip safety merely because known fields can be serialized. A parsed object model can lose unknown or unsupported metadata when it is serialized from scratch.
+More importantly, a password manager must not infer round-trip safety merely because known fields can be serialized. A parsed object model can lose unknown or unsupported metadata when it is serialized from scratch. The Fortress fork therefore records Serde paths ignored during tolerant XML parsing and refuses serialization with `UnpreservedXmlFields` before writing output whenever such paths exist.
 
 Therefore Fortress will not enable `save_kdbx4` in production until its own independent round-trip/interoperability corpus proves preservation for the supported surface, including at least:
 
@@ -93,7 +93,7 @@ Before attacker-controlled expensive work, Fortress must enforce explicit resour
 - attachment/binary sizes and aggregate decoded data;
 - entry/group/history counts where they can cause pathological allocation or traversal.
 
-The first Fortress-owned pre-decrypt gate is now implemented outside `keepass-rs`: it bounds encrypted input size, outer-header/KDF scanning, AES-KDF rounds, Argon2 memory/iterations/parallelism and an overflow-safe combined memory-by-iteration work budget before the selected engine is invoked. Decompression/expansion and post-decrypt structure/attachment/count limits remain mandatory before production open is exposed; if upstream cannot enforce those remaining limits early enough, Fortress will contribute the necessary hooks or carry a minimal reviewed hardening patch/fork.
+The Fortress-owned pre-decrypt gate bounds encrypted input size, outer-header/KDF scanning, AES-KDF rounds, Argon2 memory/iterations/parallelism and an overflow-safe combined memory-by-iteration work budget before the selected engine is invoked. The pinned Fortress fork additionally bounds KDBX3/KDBX4 payload decompression and binary-attachment expansion before untrusted output is fully materialized, while Fortress validates post-decrypt group/entry/depth/field/history/custom-data/attachment counts and aggregate sizes. These resource gates are now complete for the currently accepted corpus; new format/features must extend them rather than bypass them.
 
 ## Dependency boundary
 
@@ -137,9 +137,10 @@ Rejected. OneKeePass is a learning source only. Fortress keeps its own narrowly 
 4. [x] Project-generated KDBX4 Argon2id/AES-256-CBC fixture and read test pass in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 5. [x] Project-generated KDBX4 binary-pool attachment and database/group/entry `CustomData` fixture passes exact read-preservation tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
 6. [x] Project-generated KDBX4 password + raw-32-byte-keyfile composite-key fixture passes positive/negative credential tests in Foundation CI, including Android ARM64/x86_64 Rust target checks.
-7. [ ] Complete resource-budget enforcement before production open/decrypt is exposed to Android.
+7. [x] Complete resource-budget enforcement before production open/decrypt is exposed to Android.
    - [x] Pre-decrypt input/outer-header/KDF gate with typed failures, AES/Argon2 ceilings and overflow-safe combined-work checks.
-   - [ ] Decompression/expansion and post-decrypt structure/attachment/count ceilings.
-8. Keep the engine behind an internal adapter/handle boundary.
-9. Enable write support only after independent round-trip and reference-tool validation.
-10. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.
+   - [x] Decompression/expansion and post-decrypt structure/attachment/count ceilings.
+8. [x] Make unknown/not-yet-modeled XML fail closed for serialization while retaining tolerant read support: ignored Serde XML paths are recorded and `Database::save` returns `UnpreservedXmlFields` before writing output.
+9. Keep the engine behind an internal adapter/handle boundary.
+10. Enable write support only after independent round-trip and reference-tool validation.
+11. Reassess the exact dependency revision before the first public prerelease and apply the normal license/security dependency review gate.
