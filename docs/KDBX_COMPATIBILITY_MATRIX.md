@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the deterministic interoperability corpus that must exist before KDBX Bastion exposes production vault operations to Android. It is intentionally engine-neutral: the same fixtures and acceptance criteria are used to evaluate an upstream Rust dependency, a hardened fork, or an independent orchestration layer.
+This document defines the deterministic interoperability corpus that must exist before KDBX Fortress exposes production vault operations to Android. It is intentionally engine-neutral: the same fixtures and acceptance criteria are used to evaluate an upstream Rust dependency, a hardened fork, or an independent orchestration layer.
 
 ## Reference implementations
 
@@ -56,6 +56,8 @@ A candidate engine is acceptable for the initial read-only core only when:
 
 ## Round-trip gate
 
+The normative format/version policy is defined in `docs/KDBX_WRITE_POLICY.md`. In particular, KDBX 4.0 must not be silently upgraded to 4.1, and KDBX 3.1 remains read-only in the initial write envelope.
+
 Write support remains disabled until all fixtures that the selected engine claims to preserve satisfy:
 
 - open → serialize → reopen returns the same logical database content;
@@ -64,7 +66,7 @@ Write support remains disabled until all fixtures that the selected engine claim
 - attachments remain byte-identical;
 - history/custom data are preserved where supported;
 - unknown-but-preservable fields are not silently discarded;
-- KeePassXC/KeePass can reopen the produced database;
+- KeePassXC and KeePass 2.x can independently reopen representative produced databases;
 - a failed serialization never produces a partial success artifact.
 
 Byte-for-byte equality is not required because salts/nonces and representation details may legitimately change. Logical equivalence and independent implementation interoperability are required.
@@ -89,4 +91,4 @@ Real user vaults or credentials must never be committed.
 
 ## Engine evaluation use
 
-The same corpus is used to compare candidate strategies. A candidate is not selected because it has the broadest advertised feature list; it is selected only after the required matrix passes and its API permits KDBX Bastion's resource limits, protected-value boundary, explicit lock semantics and future round-trip requirements.
+The same corpus is used to compare candidate strategies. A candidate is not selected because it has the broadest advertised feature list; it is selected only after the required matrix passes and its API permits KDBX Fortress's resource limits, protected-value boundary, explicit lock semantics and future round-trip requirements.
