@@ -199,7 +199,10 @@ fn kdbx4_outer_field_range(bytes: &[u8], wanted_id: u8) -> std::ops::Range<usize
         let value_end = value_start
             .checked_add(field_len)
             .expect("KDBX4 outer field length must not overflow");
-        assert!(value_end <= bytes.len(), "KDBX4 outer field must fit fixture");
+        assert!(
+            value_end <= bytes.len(),
+            "KDBX4 outer field must fit fixture"
+        );
 
         if field_id == wanted_id {
             return value_start..value_end;
@@ -224,7 +227,10 @@ fn kdbx4_outer_header_end(bytes: &[u8]) -> usize {
         let value_end = (pos + 5)
             .checked_add(field_len)
             .expect("KDBX4 outer field length must not overflow");
-        assert!(value_end <= bytes.len(), "KDBX4 outer field must fit fixture");
+        assert!(
+            value_end <= bytes.len(),
+            "KDBX4 outer field must fit fixture"
+        );
         pos = value_end;
         if field_id == 0 {
             return pos;
@@ -392,11 +398,7 @@ fn derived_adversarial_inputs_fail_closed_without_panics() {
 
     let mut unsupported_kdf = basic.clone();
     let kdf_range = kdbx4_outer_field_range(&unsupported_kdf, KDBX4_KDF_FIELD_ID);
-    replace_exact_once(
-        &mut unsupported_kdf[kdf_range],
-        &ARGON2D_UUID,
-        &[0xa5; 16],
-    );
+    replace_exact_once(&mut unsupported_kdf[kdf_range], &ARGON2D_UUID, &[0xa5; 16]);
     cases.push((
         "unsupported-kdf-identifier",
         unsupported_kdf,

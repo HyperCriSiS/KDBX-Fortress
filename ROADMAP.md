@@ -10,13 +10,13 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the bounded KDBX compatibility path now passes the full manifest-backed accepted/adversarial corpus without escaping Rust panics or format regressions, all configured input/KDF/decompression/structure/field/attachment resource ceilings fail closed through typed errors, and independent KeePassXC plus KeePass 2.x/KPScript reopen gates are automated. Remaining Phase 0 blockers are the stable Rust handle/API model and explicit secret-buffer memory hygiene/zeroization.**
+Status: **Phase 0 in progress; the bounded KDBX corpus gate now covers every manifest-backed accepted/rejected fixture plus derived outer-header/version/cipher/KDF, credential, truncation, integrity and representative resource-budget failures without escaping Rust panics. Authenticated malformed decrypted XML/invalid nesting and any duplicate/invalid-identifier behavior with defined engine semantics remain to be characterized before the corpus gate is complete; stable Rust handle/API and secret-buffer memory hygiene/zeroization follow after that.**
 
-Repository base before this roadmap update: `main` at `38085ca30d6fb87cf4c2d8d64770ea8aa4bd7708`.
+Roadmap baseline for this corpus tranche: `main` at `f376bc0217aa9a7425ee5d1ebe4deb032f0b7c0a`.
 
 - The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `2c70c4b56f124ee19c5c338ef33615d97eba39ba` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach.
 - Deterministic generated fixtures and executable Rust tests cover KDBX 3.1 and KDBX 4 variants, including AES-KDF, Argon2d, Argon2id, AES-256-CBC, ChaCha20 outer encryption, protected fields, Unicode, attachments, `CustomData`, and password + raw-32-byte key-file composite credentials.
-- Negative coverage includes malformed/truncated headers, invalid signatures and incorrect credential combinations.
+- Negative coverage includes malformed/truncated headers, invalid signatures, incorrect credential combinations, derived unsupported version/cipher/KDF cases, truncated encrypted payloads, corrupted header/payload authentication data and representative typed resource-budget failures. Authenticated malformed decrypted XML/invalid nesting remains an explicit open corpus item.
 - Fixture hashes/manifests are validated in CI; required Android Rust targets and exported native symbols are checked by the foundation workflow.
 - The bounded decompression/attachment-expansion integration was rebuilt cleanly on current `main` and merged through PR #12 after the full `Foundation` workflow passed, including Rust tests and Android ARM64/x86_64 checks.
 - `main` is protected; recent work uses short-lived feature/test branches and pull requests before integration.
@@ -59,7 +59,11 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
     - [x] Post-decrypt structure/attachment/count ceilings and decompression/expansion limits.
       - [x] Enforce typed post-decrypt ceilings for group/entry counts, group depth, per-entry fields/history/custom-data/attachment references, per-attachment size and aggregate attachment bytes; validate the gate against the real KDBX3/KDBX4 fixture suite.
       - [x] Bound KDBX3/KDBX4 payload decompression and binary-attachment expansion before untrusted output is fully materialized through the pinned Fortress `keepass-rs` fork; map engine resource failures to typed, non-secret Fortress errors and exercise the limits through the real fixture suite.
-  - [x] Validate the chosen engine/adapter against the full manifest-backed accepted/adversarial corpus: every manifest KDBX fixture is covered, no Rust panic escapes the corpus/credential/resource-budget cases, accepted files retain expected format/version markers, malformed/credential cases fail closed, and configured input/KDF/decompression/structure/field/attachment ceilings reject through typed errors. This does not claim that `catch_unwind` proves allocation boundedness; boundedness is established by the independently enforced resource ceilings and their fail-closed tests.
+  - [ ] Validate the chosen engine/adapter against the full accepted/adversarial corpus with no panics, no unbounded allocation and no format regressions.
+    - [x] Gate every manifest-backed KDBX fixture through the bounded adapter; accepted files retain expected format/version/content markers while manifest malformed-header/signature cases and incorrect credentials fail closed without an escaping Rust panic.
+    - [x] Add deterministic derived adversarial coverage for unsupported major version, invalid outer-header field length, unsupported cipher/KDF identifiers, truncated encrypted payload, corrupted header authentication and corrupted payload integrity; require fail-closed Fortress error categories without escaping Rust panics.
+    - [x] Exercise representative input/KDF/decompression/structure/field/custom-data/per-attachment/aggregate-attachment resource ceilings through the integrated corpus gate. `catch_unwind` is only a panic-containment assertion; allocation boundedness is established by the separately enforced preflight, bounded-decompression and post-decrypt resource ceilings plus their fail-closed tests.
+    - [ ] Add authenticated malformed decrypted XML / invalid nesting coverage, then characterize duplicate or otherwise invalid identifiers wherever the pinned engine exposes defined behavior. Close the parent gate only when these residual adversarial classes are deterministic and panic-free.
 - [ ] Define the stable Rust handle/API model and Kotlin wrapper while preserving the invariant that decrypted vault state remains inside Rust.
 - [ ] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
 - [ ] Extend the JNI contract beyond the smoke boundary only after engine selection, parser limits and error semantics are proven.
@@ -214,16 +218,16 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **KDBX compatibility/corpus validation is no longer the active write blocker.** The version policy remains explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation, unknown-XML fail-closed handling, positive fixture materialization, the full manifest-backed accepted/adversarial corpus, KeePassXC reopening and pinned KeePass 2.x/KPScript reopening are automated. Production write exposure is now blocked on the stable Rust handle/API contract and secret-buffer memory hygiene/zeroization.
-2. **Production KDBX open/decrypt exposure is blocked on the stable Rust handle/API plus secret-buffer memory-hygiene work.** The compatibility/corpus and Fortress-owned resource-budget gates are complete.
+1. **KDBX corpus validation remains narrowly blocked on authenticated malformed decrypted XML/invalid nesting and any duplicate/invalid-identifier cases for which the pinned engine has defined semantics.** The version policy remains explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is deliberate rather than Save, and KDBX 3.1 remains read-only. Positive fixtures, manifest failures, credentials, outer-header/version/cipher/KDF mutations, truncation/integrity mutations, resource ceilings, history/unknown-XML write protection and independent KeePassXC/KeePass reopening are already automated.
+2. **Production KDBX open/decrypt exposure is blocked on closing that residual corpus gate, then implementing the stable Rust handle/API and secret-buffer memory-hygiene work.** The Fortress-owned resource-budget gate itself is complete.
 3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Define and implement the stable Rust handle/API model while preserving the invariant that decrypted vault state remains inside Rust.
-2. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers.
-3. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.
+1. [ ] Close the residual adversarial corpus gap with authenticated malformed decrypted XML/invalid nesting and defined invalid-identifier cases; keep the integrated gate deterministic and panic-free.
+2. [ ] Define and implement the stable Rust handle/API model while preserving the invariant that decrypted vault state remains inside Rust.
+3. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers; extend JNI only after these Phase-0 gates are proven.
 
 ## Completion status
 
