@@ -213,7 +213,7 @@
       "outer_cipher": "AES-256-CBC",
       "purpose": "KeePass-produced KDBX4 fixture covering empty strings, omitted optional entry values and an empty group",
       "expected": {
-        "empty_group": "Empty Group",
+        "empty_group": "Synthetic",
         "entry": "Blank Fields",
         "username": "",
         "url": "",
