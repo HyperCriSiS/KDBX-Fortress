@@ -1,0 +1,46 @@
+name: One-shot handle const compatibility fix
+
+on:
+  push:
+    branches:
+      - feat/vault-handle-registry
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/vault-handle-registry
+
+      - name: Apply stable const expression and format
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('rust/vault-core/src/handle_registry.rs')
+          text = path.read_text(encoding='utf-8')
+          old = 'const SLOT_TOKEN_MASK: u64 = u64::from(u32::MAX);'
+          new = 'const SLOT_TOKEN_MASK: u64 = 0xffff_ffff;'
+          if old not in text:
+              raise SystemExit('handle mask anchor missing')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          cargo fmt --manifest-path rust/Cargo.toml --all
+
+      - name: Commit fix and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-handle-const-fix.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: use stable const vault handle mask"
+          git push origin HEAD:feat/vault-handle-registry
