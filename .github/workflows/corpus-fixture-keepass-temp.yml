@@ -67,7 +67,7 @@ jobs:
           "KEEPASS_REFERENCE_DIR=$($keepassExe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Materialize KDBX4 edge fixtures
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -167,7 +167,8 @@ jobs:
           empty = by_file['kdbx4-empty-edge.kdbx.b64']
           empty.update({
               'sha256': sha256(os.environ['EMPTY_DB']),
-              'format': f'KDBX4.{empty_version[1]}',
+              'format': 'KDBX4',
+              'version': f'{empty_version[0]}.{empty_version[1]}',
               'creator': creator,
               'kdf': {'name': 'Argon2d'},
               'outer_cipher': 'AES-256-CBC',
@@ -177,7 +178,8 @@ jobs:
           large = by_file['kdbx4-large-bounded.kdbx.b64']
           large.update({
               'sha256': sha256(os.environ['LARGE_DB']),
-              'format': f'KDBX4.{large_version[1]}',
+              'format': 'KDBX4',
+              'version': f'{large_version[0]}.{large_version[1]}',
               'creator': creator,
               'kdf': {'name': 'Argon2d'},
               'outer_cipher': 'AES-256-CBC',
