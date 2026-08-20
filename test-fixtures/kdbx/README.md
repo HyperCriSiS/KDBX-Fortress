@@ -2,7 +2,7 @@
 
 This directory contains synthetic databases used only for compatibility tests. They contain no real credentials.
 
-`manifest.json` records the fixture password, expected logical content and immutable SHA-256 digest. The first fixture is a minimal KDBX4 password-only database; later fixtures extend the matrix to KDBX3, keyfiles, Argon2id/AES-KDF, ChaCha20, attachments, history, Unicode and negative/adversarial cases.
+`manifest.json` records each fixture password, expected logical content, provenance and immutable SHA-256 digest. The corpus combines deterministic project-generated cases with independently generated KeePass reference fixtures and extends the matrix across KDBX3/KDBX4, keyfiles, Argon2d/Argon2id/AES-KDF, AES/ChaCha20, attachments, history, Unicode, empty/optional-value edges, bounded-large inputs and negative/adversarial cases.
 
 Validate the corpus with:
 
@@ -25,3 +25,7 @@ python tools/validate_kdbx_fixtures.py
 `kdbx4-attachments-custom-data.kdbx.b64` extends the Argon2id/AES synthetic corpus with two KDBX4 binary-pool attachments: one unprotected text attachment and one protected binary attachment. Its executable Rust test verifies exact attachment names/bytes, preservation of the protected/unprotected state, and `CustomData` at database, group and entry levels.
 
 `kdbx4-composite-key-keyfile.kdbx.b64` requires both the fixture password and `kdbx4-composite-key.raw32.key`. The sidecar is an exact 32-byte raw KeePass keyfile; the validator checks its size and SHA-256 independently. The Rust compatibility test proves the correct composite key opens the database and rejects missing/wrong password or missing/wrong keyfile combinations. Raw-32 is used deliberately for this first keyfile gate because the pinned `keepass = 0.13.18` XML-v2 keyfile parser does not validate the XML `Hash` attribute.
+
+`kdbx4-empty-edge.kdbx.b64` is an independently materialized KeePass 2.61.1/KPScript/KeePassLib KDBX 4.0 fixture. It preserves the template's empty `Synthetic` group and adds `Blank Fields` with empty optional values. The Rust corpus test accepts either omitted or explicitly empty optional fields and rejects invented non-empty values.
+
+`kdbx4-large-bounded.kdbx.b64` is an independently materialized KeePass 2.61.1/KeePassLib KDBX 4.0 fixture with a 65,536-byte `Notes` value and a deterministic 262,144-byte `payload.bin` attachment (`byte[i] = i mod 256`). Its Rust tests verify exact content, accept the fixture at the exact configured field/attachment ceilings, and require typed rejection when those ceilings are lowered by one byte.

@@ -20,8 +20,8 @@ Every fixture category should have at least one independently generated oracle f
 | `kdbx4-custom-data` | KDBX 4.1 | Argon2id | AES-256 | custom database/group/entry data and unknown-but-preservable fields | round trip without silent loss |
 | `kdbx4-history` | KDBX 4.x | Argon2id | AES-256 | entry history plus protected fields | history retained after round trip |
 | `kdbx4-unicode` | KDBX 4.x | Argon2id | AES-256 | Unicode titles, usernames, URLs, notes and custom fields | exact UTF-8 round trip |
-| `kdbx4-empty-edge` | KDBX 4.x | Argon2id | AES-256 | empty strings, missing optional fields, empty groups | no invented values or crashes |
-| `kdbx4-large-bounded` | KDBX 4.x | Argon2id | AES-256 | bounded large attachment/custom fields near configured limits | accepted within limits; deterministic rejection above limits |
+| `kdbx4-empty-edge` | KDBX 4.0 | Argon2d | AES-256 | empty strings, missing optional fields, empty groups | no invented values or crashes |
+| `kdbx4-large-bounded` | KDBX 4.0 | Argon2d | AES-256 | 65,536-byte Notes value and deterministic 262,144-byte attachment | exact content preserved; exact configured boundary accepted; one-byte-lower ceilings reject with typed errors |
 
 ## Negative and adversarial corpus
 
@@ -42,6 +42,15 @@ The corpus must also include deterministic failures:
 - duplicate or otherwise invalid identifiers where the selected engine has defined behavior.
 
 Every negative fixture must fail closed with a stable `VaultError` category and must not panic.
+
+### Materialized accepted-edge reference fixtures
+
+The Phase 0 accepted corpus now includes two KDBX 4.0 edge fixtures materialized with pinned KeePass 2.61.1/KPScript/KeePassLib rather than the Fortress serializer:
+
+- `kdbx4-empty-edge.kdbx.b64`: empty `Synthetic` group plus a `Blank Fields` entry whose optional string values are empty/omitted; the read assertion forbids invented non-empty values.
+- `kdbx4-large-bounded.kdbx.b64`: exact 65,536-byte Notes value plus deterministic 262,144-byte `payload.bin`; Fortress accepts the exact configured field/attachment ceilings and rejects one-byte-lower field, per-attachment and aggregate-attachment ceilings through typed errors.
+
+Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the remaining positive fixture-matrix materialization gaps; the separate full-corpus no-panic/no-regression gate remains required.
 
 ## Read compatibility gate
 

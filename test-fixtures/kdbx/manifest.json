@@ -196,6 +196,59 @@
       "format": "KDBX4",
       "purpose": "deterministic invalid-signature rejection fixture",
       "expected_failure": "invalid_signature"
+    },
+    {
+      "file": "kdbx4-empty-edge.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "a469cc32e34aeb50cdc4624267dca301ea44e35da56fabd4a63a13dd86283097",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "creator": {
+        "implementation": "KeePass 2.61.1 / KPScript / KeePassLib",
+        "version": "2.61.1"
+      },
+      "kdf": {
+        "name": "Argon2d"
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "KeePass-produced KDBX4 fixture covering empty strings, omitted optional entry values and an empty group",
+      "expected": {
+        "empty_group": "Synthetic",
+        "entry": "Blank Fields",
+        "username": "",
+        "url": "",
+        "notes": "",
+        "optional_fields": "missing-or-empty"
+      },
+      "version": "4.0"
+    },
+    {
+      "file": "kdbx4-large-bounded.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "aaff8f0dc6ca82354bfd0bf1f9e59e57374bcd72979021987694e1055bf61f7e",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "creator": {
+        "implementation": "KeePass 2.61.1 / KPScript / KeePassLib",
+        "version": "2.61.1"
+      },
+      "kdf": {
+        "name": "Argon2d"
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "KeePass-produced KDBX4 fixture with a 64 KiB Notes value and deterministic 256 KiB attachment for acceptance/rejection boundary tests",
+      "expected": {
+        "entry": "Large Fixture",
+        "username": "large-user",
+        "url": "https://large.example.test",
+        "notes_bytes": 65536,
+        "attachment": {
+          "name": "payload.bin",
+          "size": 262144,
+          "sha256": "2312394bd99545d9de131c24efb781e765ac1aec243f2ed9347597a793a415e9"
+        }
+      },
+      "version": "4.0"
     }
   ]
 }
