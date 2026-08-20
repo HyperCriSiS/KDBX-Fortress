@@ -1,0 +1,204 @@
+name: KeePass KDBX4 corpus fixture generator (temporary)
+
+on:
+  push:
+    branches:
+      - test/kdbx-accepted-corpus-gaps
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: "github.event.head_commit.message != 'test: materialize KeePass KDBX4 corpus fixtures'"
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Download and verify pinned KeePass reference tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $toolsDir = Join-Path $env:RUNNER_TEMP 'keepass-reference'
+          New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+          $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
+          $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
+
+          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $keepassZip 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download?use_mirror=phoenixnap'
+          if ($LASTEXITCODE -ne 0) { throw "KeePass download failed (curl exit $LASTEXITCODE)" }
+          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $kpscriptZip 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip'
+          if ($LASTEXITCODE -ne 0) { throw "KPScript download failed (curl exit $LASTEXITCODE)" }
+
+          function Assert-ReferencePackage {
+            param(
+              [Parameter(Mandatory = $true)][string]$Path,
+              [Parameter(Mandatory = $true)][long]$ExpectedSize,
+              [Parameter(Mandatory = $true)][string]$ExpectedSha256
+            )
+            $item = Get-Item -LiteralPath $Path
+            if ($item.Length -ne $ExpectedSize) {
+              throw "Unexpected package size for $($item.Name): $($item.Length) != $ExpectedSize"
+            }
+            $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+            if ($actualSha256 -ne $ExpectedSha256) {
+              throw "SHA-256 mismatch for $($item.Name): $actualSha256"
+            }
+          }
+
+          Assert-ReferencePackage -Path $keepassZip -ExpectedSize 2898806 -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
+          Assert-ReferencePackage -Path $kpscriptZip -ExpectedSize 24707 -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
+
+          $keepassDir = Join-Path $toolsDir 'keepass'
+          $kpscriptDir = Join-Path $toolsDir 'kpscript'
+          Expand-Archive -LiteralPath $keepassZip -DestinationPath $keepassDir
+          Expand-Archive -LiteralPath $kpscriptZip -DestinationPath $kpscriptDir
+
+          $keepassExe = Get-ChildItem -Path $keepassDir -Filter 'KeePass.exe' -Recurse | Select-Object -First 1
+          $kpscriptExe = Get-ChildItem -Path $kpscriptDir -Filter 'KPScript.exe' -Recurse | Select-Object -First 1
+          if (-not $keepassExe) { throw 'KeePass.exe missing from verified portable package' }
+          if (-not $kpscriptExe) { throw 'KPScript.exe missing from verified package' }
+          Copy-Item -LiteralPath $kpscriptExe.FullName -Destination $keepassExe.Directory.FullName
+
+          "KEEPASS_REFERENCE_DIR=$($keepassExe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Materialize KDBX4 edge fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $fixturePassword = 'fixture-password'
+          $work = Join-Path $env:RUNNER_TEMP 'fortress-corpus-keepass'
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $template = Join-Path $env:GITHUB_WORKSPACE 'test-fixtures\kdbx\basic-kdbx4.kdbx'
+          $emptyDb = Join-Path $work 'kdbx4-empty-edge.kdbx'
+          $largeDb = Join-Path $work 'kdbx4-large-bounded.kdbx'
+          $kpscript = Join-Path $env:KEEPASS_REFERENCE_DIR 'KPScript.exe'
+          $keepassExe = Join-Path $env:KEEPASS_REFERENCE_DIR 'KeePass.exe'
+
+          Copy-Item -LiteralPath $template -Destination $emptyDb
+          Copy-Item -LiteralPath $template -Destination $largeDb
+
+          & $kpscript '-c:DeleteAllEntries' $emptyDb "-pw:$fixturePassword" *> $null
+          if ($LASTEXITCODE -ne 0) { throw "DeleteAllEntries failed (exit $LASTEXITCODE)" }
+          & $kpscript '-c:AddEntry' $emptyDb "-pw:$fixturePassword" '-Title:Blank Fields' '-UserName:' '-Password:' '-URL:' '-Notes:' *> $null
+          if ($LASTEXITCODE -ne 0) { throw "AddEntry for empty fixture failed (exit $LASTEXITCODE)" }
+
+          [void][System.Reflection.Assembly]::LoadFrom($keepassExe)
+          $io = [KeePassLib.Serialization.IOConnectionInfo]::new()
+          $io.Path = $largeDb
+          $key = [KeePassLib.Keys.CompositeKey]::new()
+          $key.AddUserKey([KeePassLib.Keys.KcpPassword]::new($fixturePassword))
+          $db = [KeePassLib.PwDatabase]::new()
+          $db.Open($io, $key, $null)
+          try {
+            $entry = $db.RootGroup.GetEntries($true) |
+              Where-Object { $_.Strings.ReadSafe('Title') -eq 'Example Login' } |
+              Select-Object -First 1
+            if (-not $entry) { throw 'Template entry Example Login not found' }
+
+            $entry.Strings.Set('Title', [KeePassLib.Security.ProtectedString]::new($false, 'Large Fixture'))
+            $entry.Strings.Set('UserName', [KeePassLib.Security.ProtectedString]::new($false, 'large-user'))
+            $entry.Strings.Set('URL', [KeePassLib.Security.ProtectedString]::new($false, 'https://large.example.test'))
+            $entry.Strings.Set('Notes', [KeePassLib.Security.ProtectedString]::new($false, ('N' * 65536)))
+
+            [byte[]]$payload = New-Object byte[] 262144
+            for ($i = 0; $i -lt $payload.Length; $i++) {
+              $payload[$i] = [byte]($i % 256)
+            }
+            $entry.Binaries.Set('payload.bin', [KeePassLib.Security.ProtectedBinary]::new($false, $payload))
+            $entry.Touch($true)
+            $db.Save($null)
+          }
+          finally {
+            $db.Close()
+          }
+
+          foreach ($database in @($emptyDb, $largeDb)) {
+            $bytes = [System.IO.File]::ReadAllBytes($database)
+            $rawVersion = [BitConverter]::ToUInt32($bytes, 8)
+            $major = $rawVersion -shr 16
+            $minor = $rawVersion -band 0xFFFF
+            if ($major -ne 4) { throw "Expected KDBX4 for $database, got $major.$minor" }
+            Write-Host "$([IO.Path]::GetFileName($database)) version: $major.$minor"
+            & $kpscript '-c:ListEntries' $database "-pw:$fixturePassword" *> $null
+            if ($LASTEXITCODE -ne 0) { throw "KeePass/KPScript failed to reopen $database" }
+          }
+
+          $fixturesDir = Join-Path $env:GITHUB_WORKSPACE 'test-fixtures\kdbx'
+          [Convert]::ToBase64String([IO.File]::ReadAllBytes($emptyDb)) | Set-Content -LiteralPath (Join-Path $fixturesDir 'kdbx4-empty-edge.kdbx.b64') -NoNewline
+          [Convert]::ToBase64String([IO.File]::ReadAllBytes($largeDb)) | Set-Content -LiteralPath (Join-Path $fixturesDir 'kdbx4-large-bounded.kdbx.b64') -NoNewline
+
+          "EMPTY_DB=$emptyDb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LARGE_DB=$largeDb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Update and validate fixture manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+          import hashlib
+          import json
+          import os
+          import struct
+
+          def sha256(path):
+              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+          def version(path):
+              raw = struct.unpack('<I', Path(path).read_bytes()[8:12])[0]
+              return raw >> 16, raw & 0xffff
+
+          manifest_path = Path('test-fixtures/kdbx/manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          by_file = {entry['file']: entry for entry in manifest['fixtures']}
+          empty_version = version(os.environ['EMPTY_DB'])
+          large_version = version(os.environ['LARGE_DB'])
+          creator = {
+              'implementation': 'KeePass 2.61.1 / KPScript / KeePassLib',
+              'version': '2.61.1',
+          }
+
+          empty = by_file['kdbx4-empty-edge.kdbx.b64']
+          empty.update({
+              'sha256': sha256(os.environ['EMPTY_DB']),
+              'format': f'KDBX4.{empty_version[1]}',
+              'creator': creator,
+              'kdf': {'name': 'Argon2d'},
+              'outer_cipher': 'AES-256-CBC',
+              'purpose': 'KeePass-produced KDBX4 fixture covering empty strings, omitted optional entry values and an empty group',
+          })
+
+          large = by_file['kdbx4-large-bounded.kdbx.b64']
+          large.update({
+              'sha256': sha256(os.environ['LARGE_DB']),
+              'format': f'KDBX4.{large_version[1]}',
+              'creator': creator,
+              'kdf': {'name': 'Argon2d'},
+              'outer_cipher': 'AES-256-CBC',
+              'purpose': 'KeePass-produced KDBX4 fixture with a 64 KiB Notes value and deterministic 256 KiB attachment for acceptance/rejection boundary tests',
+          })
+
+          manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          '@ | Set-Content -LiteralPath $env:RUNNER_TEMP\update_manifest.py -Encoding utf8
+          python $env:RUNNER_TEMP\update_manifest.py
+          python tools/validate_kdbx_fixtures.py
+
+      - name: Commit corrected fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & git diff --check
+          if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed' }
+          & git config user.name 'HyperCriSiS'
+          & git config user.email 'dev.github@w3b.world'
+          & git add test-fixtures/kdbx/kdbx4-empty-edge.kdbx.b64 test-fixtures/kdbx/kdbx4-large-bounded.kdbx.b64 test-fixtures/kdbx/manifest.json
+          & git commit -m 'test: materialize KeePass KDBX4 corpus fixtures'
+          if ($LASTEXITCODE -ne 0) { throw 'fixture commit failed' }
+          & git push origin HEAD:test/kdbx-accepted-corpus-gaps
+          if ($LASTEXITCODE -ne 0) { throw 'fixture push failed' }
