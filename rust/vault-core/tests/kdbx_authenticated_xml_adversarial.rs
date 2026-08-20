@@ -27,7 +27,11 @@ fn authenticated_kdbx4(raw_xml: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
 
 fn assert_authenticated_engine_rejection(name: &str, raw_xml: &[u8]) -> Result<(), Box<dyn Error>> {
     let bytes = authenticated_kdbx4(raw_xml)?;
-    let report = preflight_kdbx(&bytes, KdbxResourceLimits::default())?;
+    let report = preflight_kdbx(&bytes, KdbxResourceLimits::default()).map_err(|error| {
+        IoError::other(format!(
+            "{name}: generated authenticated fixture failed preflight: {error:?}"
+        ))
+    })?;
     assert_eq!(
         report.major_version, 4,
         "{name}: generated fixture major version"
@@ -66,7 +70,11 @@ fn assert_authenticated_engine_rejection(name: &str, raw_xml: &[u8]) -> Result<(
 fn feature_gated_raw_xml_writer_produces_a_valid_authenticated_control()
 -> Result<(), Box<dyn Error>> {
     let bytes = authenticated_kdbx4(VALID_MINIMAL_XML)?;
-    let report = preflight_kdbx(&bytes, KdbxResourceLimits::default())?;
+    let report = preflight_kdbx(&bytes, KdbxResourceLimits::default()).map_err(|error| {
+        IoError::other(format!(
+            "valid authenticated raw-XML control failed preflight: {error:?}"
+        ))
+    })?;
     assert_eq!(report.major_version, 4);
     assert_eq!(report.minor_version, 1);
 
@@ -74,7 +82,12 @@ fn feature_gated_raw_xml_writer_produces_a_valid_authenticated_control()
         &bytes,
         DatabaseKey::new().with_password(FIXTURE_PASSWORD),
         KdbxOpenLimits::default(),
-    )?;
+    )
+    .map_err(|error| {
+        IoError::other(format!(
+            "valid authenticated raw-XML control failed to open: {error:?}"
+        ))
+    })?;
     assert_eq!(database.root().name, "Root");
     Ok(())
 }
