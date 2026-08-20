@@ -8,7 +8,7 @@
 
 use std::{error::Error, fmt};
 
-const SLOT_TOKEN_MASK: u64 = u64::from(u32::MAX);
+const SLOT_TOKEN_MASK: u64 = 0xffff_ffff;
 const GENERATION_SHIFT: u32 = 32;
 const FIRST_GENERATION: u32 = 1;
 const MAX_GENERATION: u32 = i32::MAX as u32;
