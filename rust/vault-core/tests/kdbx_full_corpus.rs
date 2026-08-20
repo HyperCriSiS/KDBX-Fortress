@@ -5,8 +5,8 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use kdbx_fortress_vault_core::{
-    KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptError, KdbxPostDecryptLimits,
-    KdbxPreflightError, KdbxResourceLimits, open_kdbx_bounded, preflight_kdbx,
+    KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptError, KdbxPostDecryptLimits, KdbxPreflightError,
+    KdbxResourceLimits, open_kdbx_bounded, preflight_kdbx,
 };
 use keepass::{Database, DatabaseKey};
 
@@ -228,7 +228,11 @@ fn accepted_manifest_corpus_opens_without_panics_or_format_regressions() {
             assert_marker(&database, case.expected_title, case.name);
         }));
 
-        assert!(result.is_ok(), "{}: Rust panic escaped corpus case", case.name);
+        assert!(
+            result.is_ok(),
+            "{}: Rust panic escaped corpus case",
+            case.name
+        );
     }
 }
 
@@ -243,10 +247,13 @@ fn malformed_manifest_corpus_rejects_with_expected_errors_without_panics() {
                 KdbxOpenLimits::default(),
             )
             .expect_err("malformed corpus input must be rejected");
-            assert_eq!(error, *expected, "{name}");
+            assert_eq!(&error, expected, "{name}");
         }));
 
-        assert!(result.is_ok(), "{name}: Rust panic escaped malformed corpus case");
+        assert!(
+            result.is_ok(),
+            "{name}: Rust panic escaped malformed corpus case"
+        );
     }
 }
 
@@ -264,7 +271,11 @@ fn credential_rejections_do_not_panic_or_expose_partial_success() {
             .expect_err("wrong password must fail closed");
             assert_eq!(error, KdbxOpenError::EngineRejected, "{}", case.name);
         }));
-        assert!(result.is_ok(), "{}: wrong-password path panicked", case.name);
+        assert!(
+            result.is_ok(),
+            "{}: wrong-password path panicked",
+            case.name
+        );
     }
 
     let composite = ACCEPTED[4];
