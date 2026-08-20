@@ -10,7 +10,7 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the bounded read-only KDBX path enforces the required resource budgets, the positive compatibility fixture matrix is materialized through independent KeePass-produced edge fixtures, KDBX4 test serialization is guarded against silent minor-version and unknown-XML loss, and both independent KeePassXC and KeePass 2.x/KPScript reopen gates are automated. Remaining Phase 0 blockers are the full-corpus no-panic/no-regression gate plus stable API and memory-hygiene work.**
+Status: **Phase 0 in progress; the bounded KDBX compatibility path now passes the full manifest-backed accepted/adversarial corpus without escaping Rust panics or format regressions, all configured input/KDF/decompression/structure/field/attachment resource ceilings fail closed through typed errors, and independent KeePassXC plus KeePass 2.x/KPScript reopen gates are automated. Remaining Phase 0 blockers are the stable Rust handle/API model and explicit secret-buffer memory hygiene/zeroization.**
 
 Repository base before this roadmap update: `main` at `38085ca30d6fb87cf4c2d8d64770ea8aa4bd7708`.
 
@@ -59,7 +59,7 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
     - [x] Post-decrypt structure/attachment/count ceilings and decompression/expansion limits.
       - [x] Enforce typed post-decrypt ceilings for group/entry counts, group depth, per-entry fields/history/custom-data/attachment references, per-attachment size and aggregate attachment bytes; validate the gate against the real KDBX3/KDBX4 fixture suite.
       - [x] Bound KDBX3/KDBX4 payload decompression and binary-attachment expansion before untrusted output is fully materialized through the pinned Fortress `keepass-rs` fork; map engine resource failures to typed, non-secret Fortress errors and exercise the limits through the real fixture suite.
-  - [ ] Validate the chosen engine/adapter against the full accepted corpus with no panics, no unbounded allocation and no format regressions.
+  - [x] Validate the chosen engine/adapter against the full manifest-backed accepted/adversarial corpus: every manifest KDBX fixture is covered, no Rust panic escapes the corpus/credential/resource-budget cases, accepted files retain expected format/version markers, malformed/credential cases fail closed, and configured input/KDF/decompression/structure/field/attachment ceilings reject through typed errors. This does not claim that `catch_unwind` proves allocation boundedness; boundedness is established by the independently enforced resource ceilings and their fail-closed tests.
 - [ ] Define the stable Rust handle/API model and Kotlin wrapper while preserving the invariant that decrypted vault state remains inside Rust.
 - [ ] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
 - [ ] Extend the JNI contract beyond the smoke boundary only after engine selection, parser limits and error semantics are proven.
@@ -214,15 +214,15 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Write support is blocked on the remaining full-corpus validation, not positive fixture materialization or reference-tool coverage.** The version policy is explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation, unknown-XML fail-closed handling, KeePassXC reopening and pinned KeePass 2.x/KPScript reopening are automated; the positive fixture-matrix gaps are now materialized, but the full accepted/adversarial corpus must still pass the no-panic/no-regression gate before production writing is considered.
-2. **Production KDBX open/decrypt exposure is blocked on completing the accepted-corpus/no-panic/no-regression gate and the stable Rust handle/API plus secret-buffer memory-hygiene work.** The Fortress-owned resource-budget gate itself is complete.
+1. **KDBX compatibility/corpus validation is no longer the active write blocker.** The version policy remains explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is a deliberate operation rather than Save, and KDBX 3.1 remains read-only. History preservation, unknown-XML fail-closed handling, positive fixture materialization, the full manifest-backed accepted/adversarial corpus, KeePassXC reopening and pinned KeePass 2.x/KPScript reopening are automated. Production write exposure is now blocked on the stable Rust handle/API contract and secret-buffer memory hygiene/zeroization.
+2. **Production KDBX open/decrypt exposure is blocked on the stable Rust handle/API plus secret-buffer memory-hygiene work.** The compatibility/corpus and Fortress-owned resource-budget gates are complete.
 3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Run the full accepted/adversarial engine/adapter corpus without panics, unbounded allocation or format regressions; keep the newly completed positive edge fixtures in that gate.
-2. [ ] Define the stable Rust handle/API model and the zeroization/secret-buffer strategy.
+1. [ ] Define and implement the stable Rust handle/API model while preserving the invariant that decrypted vault state remains inside Rust.
+2. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers.
 3. [ ] Extend the JNI contract only after those Phase-0 gates are proven, then expose bounded read-only vault operations to Android.
 
 ## Completion status
