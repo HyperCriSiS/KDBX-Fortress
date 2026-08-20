@@ -52,6 +52,25 @@ The Phase 0 accepted corpus now includes two KDBX 4.0 edge fixtures materialized
 
 Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the remaining positive fixture-matrix materialization gaps; the separate full-corpus no-panic/no-regression gate remains required.
 
+### Integrated adversarial-gate status
+
+`rust/vault-core/tests/kdbx_full_corpus.rs` now integrates the manifest-backed corpus with deterministic derived failure cases. It currently covers:
+
+- every KDBX fixture declared in `test-fixtures/kdbx/manifest.json`;
+- wrong password and missing key-file rejection;
+- unsupported major KDBX version;
+- invalid outer-header field length;
+- unsupported outer-cipher and KDF identifiers;
+- truncated encrypted payload;
+- corrupted header authentication and encrypted-payload integrity;
+- representative input, Argon2, decompressed-payload, group-depth, entry-count, field-size, custom-data, per-attachment and aggregate-attachment resource ceilings;
+- a `catch_unwind` boundary around corpus, credential, derived-malformation and resource-limit cases so an engine panic cannot silently satisfy the gate.
+
+The remaining adversarial classes before this gate can be marked complete are **authenticated malformed decrypted XML / invalid nesting** and **duplicate or otherwise invalid identifiers where the pinned engine exposes defined behavior**. These require authenticated post-decrypt inputs rather than arbitrary ciphertext mutation so the XML/parser path is actually exercised.
+
+`catch_unwind` is not treated as proof of bounded allocation. Allocation/work boundedness comes from the independently enforced pre-decrypt KDF/input limits, bounded decompression/attachment expansion and post-decrypt structure/value ceilings, each with fail-closed tests.
+
+
 ## Read compatibility gate
 
 A candidate engine is acceptable for the initial read-only core only when:
