@@ -18,7 +18,19 @@ The Rust vault core is the sole owner of KDBX parsing, cryptographic operations 
 
 ### `VaultHandle`
 
-Opaque process-local identifier with generation/version checking. It is never persisted. Lock/drop invalidates it.
+Opaque process-local identifier with generation checking. It is **not a pointer** and is never persisted. Lock/drop invalidates it.
+
+The Phase-0 handle foundation uses a positive 63-bit integer representation suitable for a future JNI `jlong` / Kotlin `Long` bridge:
+
+- low 32 bits: one-based registry slot token; zero is invalid;
+- next 31 bits: non-zero generation;
+- top bit: always zero, so a valid raw handle never becomes a negative Java/Kotlin `Long`.
+
+Bridge callers must treat this value as opaque process-local capability metadata. It must not be logged, persisted, exported, placed in Android intents/bundles, or interpreted as an address. Raw decoding validates the representation before registry lookup. Every registry operation then validates slot, generation and liveness. A stale, locked, out-of-range or malformed handle maps to the same stable invalid-handle category rather than leaking registry state.
+
+The registry is explicitly bounded. Lock immediately drops the Rust-owned session value and advances its generation; repeated lock is a no-op. Reusing a vacant slot therefore produces a different handle, so a copied stale handle cannot revive. Generation exhaustion permanently retires the slot instead of wrapping. `lock_all` is likewise idempotent and drops every live Rust-owned value. Handle `Debug` output is redacted.
+
+This foundation is implemented independently of production KDBX state and JNI. The registry remains internal until the concrete Rust vault-owner API is introduced after the secret-memory gate.
 
 ### `EntryId` / `GroupId`
 
@@ -58,7 +70,10 @@ is_handle_valid(handle) -> bool
 Requirements:
 - `open_vault` runs the completed Fortress resource policy before expensive engine/KDF work, then performs complete authentication/integrity validation before exposing unlocked content.
 - credential material is not retained longer than necessary to derive/open required keys.
-- `lock_vault` is idempotent and invalidates all future reads/mutations for that handle.
+- `lock_vault` is idempotent, immediately drops the Rust-owned vault session value and invalidates all future reads/mutations for that handle.
+- slot reuse must advance the generation; a stale handle must never become valid again. Generation exhaustion retires the slot rather than wrapping.
+- malformed/stale/already-locked handles must not expose whether a registry slot exists.
+- the unlocked-session registry has an explicit capacity bound; capacity failure must not disturb existing live sessions.
 - resource limits are explicit for hostile KDBX inputs.
 
 ## Read API
@@ -126,14 +141,33 @@ The Rust core may expose entry matching/search primitives over normalized metada
 - No borrowed Rust references live across calls.
 - All buffers have explicit length and ownership conventions.
 - All integer conversions are checked.
-- All handles are validated against a registry/generation.
+- All handles are validated against a registry/generation. Raw handle values are opaque positive integers, never native pointers.
+- The high bit of the current raw-handle encoding remains zero so JNI/Kotlin signed integer conversion cannot reinterpret a valid handle as negative.
+- Handle values are redacted from Rust `Debug` output and must not be logged by bridge code.
 - Catch panics at the outer FFI boundary and translate them to `VaultError::Internal`.
 - Every `unsafe` block has a documented invariant and targeted tests.
 
 ## Initial implementation sequence
 
-1. Implement handle registry + lock semantics without KDBX parsing.
-2. Add read-only `open_vault` against deterministic KDBX fixtures.
-3. Add group/entry metadata listing and explicit single-secret retrieval.
-4. Add malformed-input/property/fuzz tests.
-5. Only then add mutation and serialization/round-trip support.
+1. [x] Implement the opaque generation-checked handle registry + idempotent lock semantics without production KDBX parsing/JNI integration.
+2. [ ] Complete the secret-buffer zeroization/memory-hygiene gate before decrypted vault state is retained behind handles.
+3. [ ] Integrate the registry into a concrete Rust vault owner and add read-only `open_vault` against deterministic KDBX fixtures.
+4. [ ] Add the Kotlin/JNI wrapper, group/entry metadata listing and explicit single-secret retrieval with stable sanitized errors.
+5. [ ] Add lifecycle/concurrency/property/fuzz coverage around the concrete owner/bridge boundary.
+6. [ ] Only then add mutation and serialization/round-trip support.
+
+### Current handle-registry implementation evidence
+
+The first tranche is deliberately smaller than the full lifecycle API. It currently proves:
+
+- structurally checked raw-handle decoding with no pointer interpretation;
+- stale-handle rejection after slot reuse;
+- idempotent single-handle and global lock;
+- immediate destruction of the Rust-owned registered value on lock;
+- explicit registry-capacity failure without disturbing live values;
+- mutable access only through the current generation;
+- slot retirement on generation exhaustion rather than wraparound;
+- destruction of remaining live values when the registry itself is dropped;
+- redacted handle `Debug` output.
+
+It does **not** yet claim production KDBX ownership, JNI exposure, secret-memory zeroization, concurrency semantics, or Android lifecycle integration.
