@@ -2,8 +2,7 @@ use std::{error::Error, io::Error as IoError};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use kdbx_fortress_vault_core::{
-    KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptError, KdbxPostDecryptLimits,
-    open_kdbx_bounded,
+    KdbxOpenError, KdbxOpenLimits, KdbxPostDecryptError, KdbxPostDecryptLimits, open_kdbx_bounded,
 };
 use keepass::{Database, DatabaseKey};
 
@@ -42,8 +41,8 @@ fn exact_large_fixture_limits() -> KdbxOpenLimits {
 }
 
 #[test]
-fn opens_kdbx4_empty_edge_fixture_without_inventing_optional_values()
--> Result<(), Box<dyn Error>> {
+fn opens_kdbx4_empty_edge_fixture_without_inventing_optional_values() -> Result<(), Box<dyn Error>>
+{
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-empty-edge.kdbx.b64"
     ))?;
@@ -53,7 +52,11 @@ fn opens_kdbx4_empty_edge_fixture_without_inventing_optional_values()
         .root()
         .group_by_path(&["Synthetic"])
         .ok_or_else(|| IoError::other("Synthetic group must remain present"))?;
-    assert_eq!(synthetic.entries().count(), 0, "Synthetic group must be empty");
+    assert_eq!(
+        synthetic.entries().count(),
+        0,
+        "Synthetic group must be empty"
+    );
 
     let entry = database
         .iter_all_entries()
@@ -68,8 +71,7 @@ fn opens_kdbx4_empty_edge_fixture_without_inventing_optional_values()
 }
 
 #[test]
-fn opens_kdbx4_large_bounded_fixture_and_preserves_exact_content()
--> Result<(), Box<dyn Error>> {
+fn opens_kdbx4_large_bounded_fixture_and_preserves_exact_content() -> Result<(), Box<dyn Error>> {
     let bytes = decode_fixture(include_str!(
         "../../../test-fixtures/kdbx/kdbx4-large-bounded.kdbx.b64"
     ))?;
@@ -121,10 +123,7 @@ fn rejects_large_fixture_one_byte_below_field_limit() -> Result<(), Box<dyn Erro
     limits.post_decrypt.max_field_bytes = NOTES_FIELD_BYTES - 1;
 
     match open_with_limits(&bytes, limits) {
-        Err(KdbxOpenError::PostDecrypt(KdbxPostDecryptError::FieldTooLarge {
-            actual,
-            limit,
-        })) => {
+        Err(KdbxOpenError::PostDecrypt(KdbxPostDecryptError::FieldTooLarge { actual, limit })) => {
             assert_eq!(actual, NOTES_FIELD_BYTES);
             assert_eq!(limit, NOTES_FIELD_BYTES - 1);
         }
