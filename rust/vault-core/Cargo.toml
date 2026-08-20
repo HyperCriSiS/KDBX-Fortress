@@ -10,8 +10,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "2c70c4b56f124ee19c5c338ef33615d97eba39ba", default-features = false }
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "86c53bbb1bf35c3c83d5e25dfa13942e062b9293", default-features = false }
 
 [dev-dependencies]
 base64 = "=0.22.1"
-keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "2c70c4b56f124ee19c5c338ef33615d97eba39ba", default-features = false, features = ["save_kdbx4"] }
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "86c53bbb1bf35c3c83d5e25dfa13942e062b9293", default-features = false, features = ["save_kdbx4", "test_fixture_tools"] }
