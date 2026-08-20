@@ -48,8 +48,8 @@ fn opens_kdbx4_empty_edge_fixture_without_inventing_optional_values() -> Result<
     ))?;
     let database = open_ok(&bytes, KdbxOpenLimits::default())?;
 
-    let synthetic = database
-        .root()
+    let root = database.root();
+    let synthetic = root
         .group_by_path(&["Synthetic"])
         .ok_or_else(|| IoError::other("Synthetic group must remain present"))?;
     assert_eq!(
@@ -77,8 +77,8 @@ fn opens_kdbx4_large_bounded_fixture_and_preserves_exact_content() -> Result<(),
     ))?;
     let database = open_ok(&bytes, KdbxOpenLimits::default())?;
 
-    let group = database
-        .root()
+    let root = database.root();
+    let group = root
         .group_by_path(&["Synthetic"])
         .ok_or_else(|| IoError::other("Synthetic group must exist"))?;
     let entry = group
