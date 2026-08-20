@@ -10,9 +10,7 @@ use keepass::{
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
-const FIXTURE_B64: &str = include_str!(
-    "../../../test-fixtures/kdbx/kdbx4-empty-edge.kdbx.b64"
-);
+const FIXTURE_B64: &str = include_str!("../../../test-fixtures/kdbx/kdbx4-empty-edge.kdbx.b64");
 
 #[test]
 fn opens_kdbx4_empty_edge_fixture_without_inventing_values() -> Result<(), Box<dyn Error>> {
