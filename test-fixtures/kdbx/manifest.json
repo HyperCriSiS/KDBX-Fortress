@@ -196,6 +196,57 @@
       "format": "KDBX4",
       "purpose": "deterministic invalid-signature rejection fixture",
       "expected_failure": "invalid_signature"
+    },
+    {
+      "file": "kdbx4-empty-edge.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "e00ff8b86348ed77ec9c0303e183f83d9c436c374dd4817e52bcf182c4e06a49",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "creator": {
+        "implementation": "KeePassXC CLI",
+        "version": "2.7.6"
+      },
+      "kdf": {
+        "name": "Argon2id"
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "independently generated KDBX4 fixture covering empty strings, omitted optional entry fields and an empty group",
+      "expected": {
+        "empty_group": "Empty Group",
+        "entry": "Blank Fields",
+        "username": "",
+        "url": "",
+        "notes": "",
+        "optional_fields": "missing-or-empty"
+      }
+    },
+    {
+      "file": "kdbx4-large-bounded.kdbx.b64",
+      "encoding": "base64",
+      "sha256": "e47ebdfa0d6b984ca4d78c3aece1871b9a1d391178e8ce07f840b2ef52621425",
+      "password": "fixture-password",
+      "format": "KDBX4",
+      "creator": {
+        "implementation": "KeePassXC CLI",
+        "version": "2.7.6"
+      },
+      "kdf": {
+        "name": "Argon2id"
+      },
+      "outer_cipher": "AES-256-CBC",
+      "purpose": "independently generated KDBX4 fixture with a large entry field and deterministic attachment for near-limit acceptance/rejection tests",
+      "expected": {
+        "entry": "Large Fixture",
+        "username": "large-user",
+        "url": "https://large.example.test",
+        "notes_bytes": 65536,
+        "attachment": {
+          "name": "payload.bin",
+          "size": 262144,
+          "sha256": "2312394bd99545d9de131c24efb781e765ac1aec243f2ed9347597a793a415e9"
+        }
+      }
     }
   ]
 }
