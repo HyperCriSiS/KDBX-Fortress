@@ -8,9 +8,7 @@ use kdbx_fortress_vault_core::{
     KdbxOpenError, KdbxOpenLimits, KdbxResourceLimits, open_kdbx_bounded, preflight_kdbx,
 };
 use keepass::{
-    Database, DatabaseKey,
-    config::KdfConfig,
-    test_fixture_tools::dump_kdbx4_with_raw_xml,
+    Database, DatabaseKey, config::KdfConfig, test_fixture_tools::dump_kdbx4_with_raw_xml,
 };
 
 const FIXTURE_PASSWORD: &str = "fixture-password";
@@ -30,8 +28,14 @@ fn authenticated_kdbx4(raw_xml: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
 fn assert_authenticated_engine_rejection(name: &str, raw_xml: &[u8]) -> Result<(), Box<dyn Error>> {
     let bytes = authenticated_kdbx4(raw_xml)?;
     let report = preflight_kdbx(&bytes, KdbxResourceLimits::default())?;
-    assert_eq!(report.major_version, 4, "{name}: generated fixture major version");
-    assert_eq!(report.minor_version, 1, "{name}: generated fixture minor version");
+    assert_eq!(
+        report.major_version, 4,
+        "{name}: generated fixture major version"
+    );
+    assert_eq!(
+        report.minor_version, 1,
+        "{name}: generated fixture minor version"
+    );
 
     let result = catch_unwind(AssertUnwindSafe(|| {
         open_kdbx_bounded(
@@ -59,7 +63,8 @@ fn assert_authenticated_engine_rejection(name: &str, raw_xml: &[u8]) -> Result<(
 }
 
 #[test]
-fn feature_gated_raw_xml_writer_produces_a_valid_authenticated_control() -> Result<(), Box<dyn Error>> {
+fn feature_gated_raw_xml_writer_produces_a_valid_authenticated_control()
+-> Result<(), Box<dyn Error>> {
     let bytes = authenticated_kdbx4(VALID_MINIMAL_XML)?;
     let report = preflight_kdbx(&bytes, KdbxResourceLimits::default())?;
     assert_eq!(report.major_version, 4);
@@ -75,8 +80,8 @@ fn feature_gated_raw_xml_writer_produces_a_valid_authenticated_control() -> Resu
 }
 
 #[test]
-fn authenticated_malformed_xml_and_identifier_cases_fail_closed_without_panics(
-) -> Result<(), Box<dyn Error>> {
+fn authenticated_malformed_xml_and_identifier_cases_fail_closed_without_panics()
+-> Result<(), Box<dyn Error>> {
     let cases: &[(&str, &[u8])] = &[
         (
             "mismatched-xml-tags",
