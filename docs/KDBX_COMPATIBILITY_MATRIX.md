@@ -50,7 +50,7 @@ The Phase 0 accepted corpus now includes two KDBX 4.0 edge fixtures materialized
 - `kdbx4-empty-edge.kdbx.b64`: empty `Synthetic` group plus a `Blank Fields` entry whose optional string values are empty/omitted; the read assertion forbids invented non-empty values.
 - `kdbx4-large-bounded.kdbx.b64`: exact 65,536-byte Notes value plus deterministic 262,144-byte `payload.bin`; Fortress accepts the exact configured field/attachment ceilings and rejects one-byte-lower field, per-attachment and aggregate-attachment ceilings through typed errors.
 
-Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the remaining positive fixture-matrix materialization gaps; the separate full-corpus no-panic/no-regression gate remains required.
+Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the positive fixture-matrix materialization gaps; the integrated accepted/adversarial gate described below now closes the corresponding Phase-0 no-panic/no-regression corpus requirement.
 
 ### Integrated adversarial-gate status
 
@@ -66,9 +66,17 @@ Their decoded SHA-256 values and creator/version metadata are fixed in `test-fix
 - representative input, Argon2, decompressed-payload, group-depth, entry-count, field-size, custom-data, per-attachment and aggregate-attachment resource ceilings;
 - a `catch_unwind` boundary around corpus, credential, derived-malformation and resource-limit cases so an engine panic cannot silently satisfy the gate.
 
-The remaining adversarial classes before this gate can be marked complete are **authenticated malformed decrypted XML / invalid nesting** and **duplicate or otherwise invalid identifiers where the pinned engine exposes defined behavior**. These require authenticated post-decrypt inputs rather than arbitrary ciphertext mutation so the XML/parser path is actually exercised.
+`rust/vault-core/tests/kdbx_authenticated_xml_adversarial.rs` closes the remaining post-decrypt parser classes using a feature-gated test-only helper in the pinned Fortress `keepass-rs` fork. The helper creates cryptographically valid KDBX 4.1 containers whose decrypted XML is supplied by the test. A valid minimal raw-XML control must open successfully before the malformed cases are considered meaningful. The adversarial set then verifies deterministic fail-closed rejection without an escaping Rust panic for:
 
-`catch_unwind` is not treated as proof of bounded allocation. Allocation/work boundedness comes from the independently enforced pre-decrypt KDF/input limits, bounded decompression/attachment expansion and post-decrypt structure/value ceilings, each with fail-closed tests.
+- mismatched XML tags;
+- an `Entry` nested directly under `Root` instead of a root `Group`;
+- invalid UUID encoding;
+- duplicate group UUIDs;
+- duplicate entry UUIDs.
+
+Because these inputs pass ordinary KDBX preflight and container authentication before reaching the XML parser, this covers the parser path rather than merely exercising ciphertext/HMAC corruption handling. The raw-XML writer is available only through the `test_fixture_tools` Cargo feature and is enabled only by the vault-core dev dependency.
+
+`catch_unwind` is not treated as proof of bounded allocation. Allocation/work boundedness comes from the independently enforced pre-decrypt KDF/input limits, bounded decompression/attachment expansion and post-decrypt structure/value ceilings, each with fail-closed tests. With the authenticated XML/identifier cases added, the defined Phase-0 accepted/adversarial corpus gate is complete.
 
 
 ## Read compatibility gate

@@ -55,7 +55,7 @@ The first integration gate is executable parsing of project-owned deterministic 
 - truncated headers are rejected;
 - invalid KDBX signatures are rejected.
 
-This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Fortress-owned pre-decrypt, decompression/binary-expansion and post-decrypt structure budgets are now enforced. Remaining Phase 0 engine validation is dominated by the remaining fixture/corpus gaps, independent reference-tool coverage and the stable API/memory-hygiene gates before production open/write support can be considered.
+This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Fortress-owned pre-decrypt, decompression/binary-expansion and post-decrypt structure budgets are enforced. The defined Phase-0 adversarial parser surface is also closed with authenticated KDBX 4.1 raw-XML tests for malformed tags, invalid root nesting, invalid UUID encoding and duplicate group/entry UUIDs. The fork helper used to create those authenticated parser fixtures is test-only and feature-gated. Remaining Phase 0 engine work is therefore the stable API/handle boundary and secret-memory hygiene rather than additional corpus characterization.
 
 ### Keyfile-format note
 
