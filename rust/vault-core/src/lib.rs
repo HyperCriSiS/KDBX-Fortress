@@ -6,11 +6,15 @@
 //! expensive KDF/decrypt path is entered.
 
 mod bounded_open;
+mod credentials;
 mod handle_registry;
 mod postflight;
 mod preflight;
 
-pub use bounded_open::{KdbxOpenError, KdbxOpenLimits, open_kdbx_bounded};
+pub use bounded_open::{
+    KdbxOpenError, KdbxOpenLimits, open_kdbx_bounded, open_kdbx_bounded_with_credentials,
+};
+pub use credentials::{SecretBytes, VaultCredentialError, VaultCredentials};
 pub use handle_registry::{VaultHandle, VaultHandleError};
 pub use postflight::{KdbxPostDecryptError, KdbxPostDecryptLimits, validate_decrypted_database};
 pub use preflight::{

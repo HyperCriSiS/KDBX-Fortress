@@ -12,7 +12,7 @@ use keepass::{
 
 use crate::{
     KdbxPostDecryptError, KdbxPostDecryptLimits, KdbxPreflightError, KdbxResourceLimits,
-    preflight_kdbx, validate_decrypted_database,
+    VaultCredentialError, VaultCredentials, preflight_kdbx, validate_decrypted_database,
 };
 
 const MIB: u64 = 1024 * 1024;
@@ -41,6 +41,8 @@ impl Default for KdbxOpenLimits {
 /// Typed, non-secret failure returned by the bounded Phase-0 KDBX open path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KdbxOpenError {
+    /// Fortress-owned credential bytes could not be converted without exposing secret data.
+    Credential(VaultCredentialError),
     /// The unencrypted preflight rejected the input or declared KDF work.
     Preflight(KdbxPreflightError),
     /// A configured `u64` limit cannot be represented by the current target's `usize`.
@@ -71,6 +73,24 @@ impl From<KdbxPostDecryptError> for KdbxOpenError {
     }
 }
 
+/// Opens a KDBX database from Fortress-owned zeroizing credential buffers.
+///
+/// This is the preferred boundary for future vault-owner/JNI code. The
+/// temporary engine `DatabaseKey` is created only after cheap preflight has
+/// accepted the input, and its owned password/key-file copies are zeroized by
+/// the pinned engine fork on both success and error paths.
+pub fn open_kdbx_bounded_with_credentials(
+    data: &[u8],
+    credentials: &VaultCredentials,
+    limits: KdbxOpenLimits,
+) -> Result<Database, KdbxOpenError> {
+    preflight_kdbx(data, limits.preflight)?;
+    let key = credentials
+        .to_database_key()
+        .map_err(KdbxOpenError::Credential)?;
+    open_kdbx_after_preflight(data, key, limits)
+}
+
 /// Opens a KDBX3/KDBX4 database through all currently required Fortress
 /// resource gates.
 ///
@@ -83,7 +103,14 @@ pub fn open_kdbx_bounded(
     limits: KdbxOpenLimits,
 ) -> Result<Database, KdbxOpenError> {
     preflight_kdbx(data, limits.preflight)?;
+    open_kdbx_after_preflight(data, key, limits)
+}
 
+fn open_kdbx_after_preflight(
+    data: &[u8],
+    key: DatabaseKey,
+    limits: KdbxOpenLimits,
+) -> Result<Database, KdbxOpenError> {
     let engine_limits = DatabaseOpenLimits {
         max_input_bytes: to_usize(limits.preflight.max_input_bytes)?,
         max_decompressed_payload_bytes: to_usize(limits.max_decompressed_payload_bytes)?,
