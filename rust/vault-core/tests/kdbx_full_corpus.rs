@@ -14,6 +14,12 @@ const FIXTURE_PASSWORD: &str = "fixture-password";
 const KEYFILE: &[u8; 32] =
     include_bytes!("../../../test-fixtures/kdbx/kdbx4-composite-key.raw32.key");
 const MANIFEST: &str = include_str!("../../../test-fixtures/kdbx/manifest.json");
+const KDBX4_VERSION_HEADER_BYTES: usize = 12;
+const KDBX4_CIPHER_FIELD_ID: u8 = 2;
+const KDBX4_KDF_FIELD_ID: u8 = 11;
+const ARGON2D_UUID: [u8; 16] = [
+    0xef, 0x63, 0x6d, 0xdf, 0x8c, 0x29, 0x44, 0x4b, 0x91, 0xf7, 0xa9, 0xa4, 0x03, 0xe3, 0x0a, 0x0c,
+];
 
 #[derive(Clone, Copy)]
 enum FixtureData {
@@ -177,6 +183,67 @@ fn assert_marker(database: &Database, expected_title: &str, case_name: &str) {
     );
 }
 
+fn kdbx4_outer_field_range(bytes: &[u8], wanted_id: u8) -> std::ops::Range<usize> {
+    assert!(bytes.len() >= KDBX4_VERSION_HEADER_BYTES);
+    let mut pos = KDBX4_VERSION_HEADER_BYTES;
+
+    loop {
+        let field_id = *bytes.get(pos).expect("KDBX4 outer field id must exist");
+        let length_bytes: [u8; 4] = bytes
+            .get(pos + 1..pos + 5)
+            .expect("KDBX4 outer field length must exist")
+            .try_into()
+            .expect("KDBX4 outer field length must be four bytes");
+        let field_len = u32::from_le_bytes(length_bytes) as usize;
+        let value_start = pos + 5;
+        let value_end = value_start
+            .checked_add(field_len)
+            .expect("KDBX4 outer field length must not overflow");
+        assert!(value_end <= bytes.len(), "KDBX4 outer field must fit fixture");
+
+        if field_id == wanted_id {
+            return value_start..value_end;
+        }
+        assert_ne!(field_id, 0, "requested KDBX4 outer field must exist");
+        pos = value_end;
+    }
+}
+
+fn kdbx4_outer_header_end(bytes: &[u8]) -> usize {
+    assert!(bytes.len() >= KDBX4_VERSION_HEADER_BYTES);
+    let mut pos = KDBX4_VERSION_HEADER_BYTES;
+
+    loop {
+        let field_id = *bytes.get(pos).expect("KDBX4 outer field id must exist");
+        let length_bytes: [u8; 4] = bytes
+            .get(pos + 1..pos + 5)
+            .expect("KDBX4 outer field length must exist")
+            .try_into()
+            .expect("KDBX4 outer field length must be four bytes");
+        let field_len = u32::from_le_bytes(length_bytes) as usize;
+        let value_end = (pos + 5)
+            .checked_add(field_len)
+            .expect("KDBX4 outer field length must not overflow");
+        assert!(value_end <= bytes.len(), "KDBX4 outer field must fit fixture");
+        pos = value_end;
+        if field_id == 0 {
+            return pos;
+        }
+    }
+}
+
+fn replace_exact_once(haystack: &mut [u8], needle: &[u8], replacement: &[u8]) {
+    assert_eq!(needle.len(), replacement.len());
+    let offsets: Vec<_> = haystack
+        .windows(needle.len())
+        .enumerate()
+        .filter_map(|(offset, candidate)| (candidate == needle).then_some(offset))
+        .collect();
+    assert_eq!(offsets.len(), 1, "mutation marker must occur exactly once");
+    let start = offsets[0];
+    haystack[start..start + replacement.len()].copy_from_slice(replacement);
+}
+
 fn manifest_kdbx_names() -> Vec<String> {
     let marker = "\"file\": \"";
     let mut names = Vec::new();
@@ -293,12 +360,102 @@ fn credential_rejections_do_not_panic_or_expose_partial_success() {
 }
 
 #[test]
+fn derived_adversarial_inputs_fail_closed_without_panics() {
+    let basic = ACCEPTED[1].data.materialize();
+    let mut cases: Vec<(&str, Vec<u8>, KdbxOpenError)> = Vec::new();
+
+    let mut unsupported_version = basic.clone();
+    unsupported_version[10..12].copy_from_slice(&5_u16.to_le_bytes());
+    cases.push((
+        "unsupported-major-version",
+        unsupported_version,
+        KdbxOpenError::Preflight(KdbxPreflightError::UnsupportedMajorVersion { major: 5 }),
+    ));
+
+    let mut invalid_header_length = basic.clone();
+    invalid_header_length[13..17].copy_from_slice(&4096_u32.to_le_bytes());
+    cases.push((
+        "invalid-outer-header-field-length",
+        invalid_header_length,
+        KdbxOpenError::Preflight(KdbxPreflightError::TruncatedOuterHeader),
+    ));
+
+    let mut unsupported_cipher = basic.clone();
+    let cipher_range = kdbx4_outer_field_range(&unsupported_cipher, KDBX4_CIPHER_FIELD_ID);
+    assert_eq!(cipher_range.len(), 16);
+    unsupported_cipher[cipher_range].fill(0xa5);
+    cases.push((
+        "unsupported-cipher-identifier",
+        unsupported_cipher,
+        KdbxOpenError::EngineRejected,
+    ));
+
+    let mut unsupported_kdf = basic.clone();
+    let kdf_range = kdbx4_outer_field_range(&unsupported_kdf, KDBX4_KDF_FIELD_ID);
+    replace_exact_once(
+        &mut unsupported_kdf[kdf_range],
+        &ARGON2D_UUID,
+        &[0xa5; 16],
+    );
+    cases.push((
+        "unsupported-kdf-identifier",
+        unsupported_kdf,
+        KdbxOpenError::Preflight(KdbxPreflightError::UnsupportedKdf),
+    ));
+
+    let mut truncated_payload = basic.clone();
+    let header_end = kdbx4_outer_header_end(&truncated_payload);
+    assert!(truncated_payload.len() > header_end + 128);
+    truncated_payload.truncate(truncated_payload.len() - 64);
+    cases.push((
+        "truncated-encrypted-payload",
+        truncated_payload,
+        KdbxOpenError::EngineRejected,
+    ));
+
+    let mut corrupt_header_auth = basic.clone();
+    let header_end = kdbx4_outer_header_end(&corrupt_header_auth);
+    let header_hmac_start = header_end + 32;
+    corrupt_header_auth[header_hmac_start] ^= 0x01;
+    cases.push((
+        "corrupt-header-authentication",
+        corrupt_header_auth,
+        KdbxOpenError::EngineRejected,
+    ));
+
+    let mut corrupt_payload_auth = basic.clone();
+    let last = corrupt_payload_auth
+        .last_mut()
+        .expect("accepted fixture must contain encrypted payload bytes");
+    *last ^= 0x01;
+    cases.push((
+        "corrupt-encrypted-payload-integrity",
+        corrupt_payload_auth,
+        KdbxOpenError::EngineRejected,
+    ));
+
+    for (name, bytes, expected) in cases {
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let error = open_kdbx_bounded(
+                &bytes,
+                DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+                KdbxOpenLimits::default(),
+            )
+            .expect_err("derived adversarial input must fail closed");
+            assert_eq!(error, expected, "{name}");
+        }));
+        assert!(result.is_ok(), "{name}: adversarial path panicked");
+    }
+}
+
+#[test]
 fn configured_resource_budgets_fail_closed_without_panics() {
     let basic = ACCEPTED[1].data.materialize();
     let argon2id = ACCEPTED[2].data.materialize();
+    let custom_data = ACCEPTED[3].data.materialize();
     let large = ACCEPTED[8].data.materialize();
 
-    let budget_cases: [(&str, &Vec<u8>, KdbxOpenLimits, KdbxOpenError); 6] = [
+    let budget_cases: [(&str, &Vec<u8>, KdbxOpenLimits, KdbxOpenError); 9] = [
         (
             "input-size",
             &basic,
@@ -379,6 +536,48 @@ fn configured_resource_budgets_fail_closed_without_panics() {
                 ..KdbxOpenLimits::default()
             },
             KdbxOpenError::AttachmentTooLarge { max: 262_143 },
+        ),
+        (
+            "aggregate-attachment-expansion",
+            &large,
+            KdbxOpenLimits {
+                post_decrypt: KdbxPostDecryptLimits {
+                    max_total_attachment_bytes: 262_143,
+                    ..KdbxPostDecryptLimits::default()
+                },
+                ..KdbxOpenLimits::default()
+            },
+            KdbxOpenError::TotalAttachmentBytesTooLarge { max: 262_143 },
+        ),
+        (
+            "group-depth",
+            &basic,
+            KdbxOpenLimits {
+                post_decrypt: KdbxPostDecryptLimits {
+                    max_group_depth: 1,
+                    ..KdbxPostDecryptLimits::default()
+                },
+                ..KdbxOpenLimits::default()
+            },
+            KdbxOpenError::PostDecrypt(KdbxPostDecryptError::GroupDepthExceeded {
+                actual: 2,
+                limit: 1,
+            }),
+        ),
+        (
+            "custom-data-items",
+            &custom_data,
+            KdbxOpenLimits {
+                post_decrypt: KdbxPostDecryptLimits {
+                    max_custom_data_items_per_node: 0,
+                    ..KdbxPostDecryptLimits::default()
+                },
+                ..KdbxOpenLimits::default()
+            },
+            KdbxOpenError::PostDecrypt(KdbxPostDecryptError::TooManyCustomDataItems {
+                actual: 1,
+                limit: 0,
+            }),
         ),
     ];
 
