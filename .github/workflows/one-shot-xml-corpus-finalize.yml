@@ -1,0 +1,106 @@
+name: One-shot XML corpus finalizer
+
+on:
+  push:
+    branches:
+      - test/kdbx-authenticated-xml-adversarial
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: test/kdbx-authenticated-xml-adversarial
+
+      - name: Reconcile Phase-0 corpus documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          roadmap = Path("ROADMAP.md")
+          text = roadmap.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  "Status: **Phase 0 in progress; the bounded KDBX corpus gate now covers every manifest-backed accepted/rejected fixture plus derived outer-header/version/cipher/KDF, credential, truncation, integrity and representative resource-budget failures without escaping Rust panics. Authenticated malformed decrypted XML/invalid nesting and any duplicate/invalid-identifier behavior with defined engine semantics remain to be characterized before the corpus gate is complete; stable Rust handle/API and secret-buffer memory hygiene/zeroization follow after that.**",
+                  "Status: **Phase 0 in progress; the bounded KDBX accepted/adversarial corpus gate is complete for the defined Phase-0 surface. It covers every manifest-backed fixture, derived outer-header/version/cipher/KDF, credential, truncation, integrity and representative resource-budget failures, plus cryptographically authenticated malformed decrypted XML, invalid root nesting, invalid UUID encoding and duplicate group/entry UUIDs without escaping Rust panics. The next blockers are the stable Rust handle/API model and explicit secret-buffer memory hygiene/zeroization.**",
+              ),
+              (
+                  "Roadmap baseline for this corpus tranche: `main` at `f376bc0217aa9a7425ee5d1ebe4deb032f0b7c0a`.",
+                  "Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203db7b125086dd9455790a1bb5f`, with the authenticated XML adversarial closure validated on PR #21 before merge.",
+              ),
+              (
+                  "- The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `2c70c4b56f124ee19c5c338ef33615d97eba39ba` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach.",
+                  "- The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `86c53bbb1bf35c3c83d5e25dfa13942e062b9293` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach. The fork's `test_fixture_tools` raw-XML writer is feature-gated and enabled only for dev/test builds so authenticated malformed decrypted XML can be exercised without widening the production API.",
+              ),
+              (
+                  "- Negative coverage includes malformed/truncated headers, invalid signatures, incorrect credential combinations, derived unsupported version/cipher/KDF cases, truncated encrypted payloads, corrupted header/payload authentication data and representative typed resource-budget failures. Authenticated malformed decrypted XML/invalid nesting remains an explicit open corpus item.",
+                  "- Negative coverage includes malformed/truncated headers, invalid signatures, incorrect credential combinations, derived unsupported version/cipher/KDF cases, truncated encrypted payloads, corrupted header/payload authentication data, representative typed resource-budget failures, and authenticated post-decrypt XML failures covering mismatched tags, invalid Root/Entry nesting, invalid UUID encoding and duplicate group/entry UUIDs.",
+              ),
+              (
+                  "  - [ ] Validate the chosen engine/adapter against the full accepted/adversarial corpus with no panics, no unbounded allocation and no format regressions.",
+                  "  - [x] Validate the chosen engine/adapter against the full accepted/adversarial corpus with no panics, no unbounded allocation and no format regressions.",
+              ),
+              (
+                  "    - [ ] Add authenticated malformed decrypted XML / invalid nesting coverage, then characterize duplicate or otherwise invalid identifiers wherever the pinned engine exposes defined behavior. Close the parent gate only when these residual adversarial classes are deterministic and panic-free.",
+                  "    - [x] Add authenticated malformed decrypted XML / invalid nesting coverage and defined invalid-identifier cases. A test-only feature-gated fork helper creates cryptographically valid KDBX 4.1 containers with caller-supplied decrypted XML; a valid control must open, while mismatched XML tags, Entry directly under Root, invalid UUID encoding, duplicate group UUID and duplicate entry UUID deterministically fail closed as engine rejection without an escaping Rust panic.",
+              ),
+              (
+                  "1. **KDBX corpus validation remains narrowly blocked on authenticated malformed decrypted XML/invalid nesting and any duplicate/invalid-identifier cases for which the pinned engine has defined semantics.** The version policy remains explicit: initial writes target KDBX 4.1 only, KDBX 4.0 migration is deliberate rather than Save, and KDBX 3.1 remains read-only. Positive fixtures, manifest failures, credentials, outer-header/version/cipher/KDF mutations, truncation/integrity mutations, resource ceilings, history/unknown-XML write protection and independent KeePassXC/KeePass reopening are already automated.\n2. **Production KDBX open/decrypt exposure is blocked on closing that residual corpus gate, then implementing the stable Rust handle/API and secret-buffer memory-hygiene work.** The Fortress-owned resource-budget gate itself is complete.\n3. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**\n4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**",
+                  "1. **Production KDBX open/decrypt exposure is now blocked on the stable Rust handle/API model and secret-buffer memory hygiene/zeroization.** The Phase-0 accepted/adversarial corpus, write-policy/round-trip evidence, Fortress-owned resource-budget gates and independent KeePassXC/KeePass reopening gates are complete for the defined surface.\n2. **Production Android vault operations are blocked on the stable Rust handle/JNI contract and secret-buffer memory hygiene.**\n3. **Production write exposure remains constrained by the documented KDBX 4.1-only initial write envelope and must continue to preserve the established unknown-XML fail-closed and independent-reference interoperability gates as the API grows.**\n4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**",
+              ),
+              (
+                  "1. [ ] Close the residual adversarial corpus gap with authenticated malformed decrypted XML/invalid nesting and defined invalid-identifier cases; keep the integrated gate deterministic and panic-free.\n2. [ ] Define and implement the stable Rust handle/API model while preserving the invariant that decrypted vault state remains inside Rust.\n3. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers; extend JNI only after these Phase-0 gates are proven.",
+                  "1. [ ] Define and implement the stable Rust handle/API model while preserving the invariant that decrypted vault state remains inside Rust.\n2. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers.\n3. [ ] Extend the JNI contract only after the stable handle/API and secret-memory gates are proven, beginning with bounded read-only vault operations.",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"ROADMAP replacement anchor missing: {old[:90]}")
+              text = text.replace(old, new)
+          roadmap.write_text(text, encoding="utf-8")
+
+          matrix = Path("docs/KDBX_COMPATIBILITY_MATRIX.md")
+          text = matrix.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  "Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the remaining positive fixture-matrix materialization gaps; the separate full-corpus no-panic/no-regression gate remains required.",
+                  "Their decoded SHA-256 values and creator/version metadata are fixed in `test-fixtures/kdbx/manifest.json`. This closes the positive fixture-matrix materialization gaps; the integrated accepted/adversarial gate described below now closes the corresponding Phase-0 no-panic/no-regression corpus requirement.",
+              ),
+              (
+                  "The remaining adversarial classes before this gate can be marked complete are **authenticated malformed decrypted XML / invalid nesting** and **duplicate or otherwise invalid identifiers where the pinned engine exposes defined behavior**. These require authenticated post-decrypt inputs rather than arbitrary ciphertext mutation so the XML/parser path is actually exercised.\n\n`catch_unwind` is not treated as proof of bounded allocation. Allocation/work boundedness comes from the independently enforced pre-decrypt KDF/input limits, bounded decompression/attachment expansion and post-decrypt structure/value ceilings, each with fail-closed tests.",
+                  "`rust/vault-core/tests/kdbx_authenticated_xml_adversarial.rs` closes the remaining post-decrypt parser classes using a feature-gated test-only helper in the pinned Fortress `keepass-rs` fork. The helper creates cryptographically valid KDBX 4.1 containers whose decrypted XML is supplied by the test. A valid minimal raw-XML control must open successfully before the malformed cases are considered meaningful. The adversarial set then verifies deterministic fail-closed rejection without an escaping Rust panic for:\n\n- mismatched XML tags;\n- an `Entry` nested directly under `Root` instead of a root `Group`;\n- invalid UUID encoding;\n- duplicate group UUIDs;\n- duplicate entry UUIDs.\n\nBecause these inputs pass ordinary KDBX preflight and container authentication before reaching the XML parser, this covers the parser path rather than merely exercising ciphertext/HMAC corruption handling. The raw-XML writer is available only through the `test_fixture_tools` Cargo feature and is enabled only by the vault-core dev dependency.\n\n`catch_unwind` is not treated as proof of bounded allocation. Allocation/work boundedness comes from the independently enforced pre-decrypt KDF/input limits, bounded decompression/attachment expansion and post-decrypt structure/value ceilings, each with fail-closed tests. With the authenticated XML/identifier cases added, the defined Phase-0 accepted/adversarial corpus gate is complete.",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"matrix replacement anchor missing: {old[:90]}")
+              text = text.replace(old, new)
+          matrix.write_text(text, encoding="utf-8")
+
+          evaluation = Path("docs/research/RUST_KDBX_ENGINE_EVALUATION.md")
+          text = evaluation.read_text(encoding="utf-8")
+          old = "This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Fortress-owned pre-decrypt, decompression/binary-expansion and post-decrypt structure budgets are now enforced. Remaining Phase 0 engine validation is dominated by the remaining fixture/corpus gaps, independent reference-tool coverage and the stable API/memory-hygiene gates before production open/write support can be considered."
+          new = "This read corpus now covers KDBX3/AES-KDF plus KDBX4 Argon2d/AES-256-CBC, KDBX4 Argon2id/AES-256-CBC and KDBX4 Argon2id/ChaCha20 paths, KDBX4 binary-pool attachments and `CustomData` at database/group/entry levels, and password + raw-32-byte-keyfile composite credentials. Fortress-owned pre-decrypt, decompression/binary-expansion and post-decrypt structure budgets are enforced. The defined Phase-0 adversarial parser surface is also closed with authenticated KDBX 4.1 raw-XML tests for malformed tags, invalid root nesting, invalid UUID encoding and duplicate group/entry UUIDs. The fork helper used to create those authenticated parser fixtures is test-only and feature-gated. Remaining Phase 0 engine work is therefore the stable API/handle boundary and secret-memory hygiene rather than additional corpus characterization."
+          if old not in text:
+              raise SystemExit("engine-evaluation replacement anchor missing")
+          evaluation.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
+      - name: Commit finalized documentation and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-xml-corpus-finalize.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: close Phase 0 KDBX corpus gate"
+          git push origin HEAD:test/kdbx-authenticated-xml-adversarial
