@@ -65,10 +65,10 @@ impl VaultHandle {
 
     fn parts(self) -> Result<(u32, u32), VaultHandleError> {
         let raw = self.0;
-        let slot_token = u32::try_from(raw & SLOT_TOKEN_MASK)
-            .map_err(|_| VaultHandleError::InvalidHandle)?;
-        let generation = u32::try_from(raw >> GENERATION_SHIFT)
-            .map_err(|_| VaultHandleError::InvalidHandle)?;
+        let slot_token =
+            u32::try_from(raw & SLOT_TOKEN_MASK).map_err(|_| VaultHandleError::InvalidHandle)?;
+        let generation =
+            u32::try_from(raw >> GENERATION_SHIFT).map_err(|_| VaultHandleError::InvalidHandle)?;
         let slot_index = slot_token
             .checked_sub(1)
             .ok_or(VaultHandleError::InvalidHandle)?;
@@ -116,7 +116,9 @@ impl fmt::Display for VaultHandleError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidHandle => formatter.write_str("invalid or stale vault handle"),
-            Self::CapacityExceeded => formatter.write_str("vault handle registry capacity exceeded"),
+            Self::CapacityExceeded => {
+                formatter.write_str("vault handle registry capacity exceeded")
+            }
         }
     }
 }
@@ -182,8 +184,7 @@ impl<T> VaultHandleRegistry<T> {
 
     pub(crate) fn get(&self, handle: VaultHandle) -> Result<&T, VaultHandleError> {
         let (slot_index, generation) = handle.parts()?;
-        let index =
-            usize::try_from(slot_index).map_err(|_| VaultHandleError::InvalidHandle)?;
+        let index = usize::try_from(slot_index).map_err(|_| VaultHandleError::InvalidHandle)?;
         let slot = self
             .slots
             .get(index)
@@ -198,8 +199,7 @@ impl<T> VaultHandleRegistry<T> {
 
     pub(crate) fn get_mut(&mut self, handle: VaultHandle) -> Result<&mut T, VaultHandleError> {
         let (slot_index, generation) = handle.parts()?;
-        let index =
-            usize::try_from(slot_index).map_err(|_| VaultHandleError::InvalidHandle)?;
+        let index = usize::try_from(slot_index).map_err(|_| VaultHandleError::InvalidHandle)?;
         let slot = self
             .slots
             .get_mut(index)
@@ -268,9 +268,7 @@ mod tests {
         atomic::{AtomicUsize, Ordering},
     };
 
-    use super::{
-        MAX_GENERATION, Slot, VaultHandle, VaultHandleError, VaultHandleRegistry,
-    };
+    use super::{MAX_GENERATION, Slot, VaultHandle, VaultHandleError, VaultHandleRegistry};
 
     #[derive(Debug)]
     struct DropProbe(Arc<AtomicUsize>);
@@ -342,7 +340,10 @@ mod tests {
     fn mutable_access_requires_the_current_generation() {
         let mut registry = VaultHandleRegistry::new(1);
         let handle = registry.insert(String::from("before")).expect("insert");
-        registry.get_mut(handle).expect("live handle").push_str("-after");
+        registry
+            .get_mut(handle)
+            .expect("live handle")
+            .push_str("-after");
         assert_eq!(registry.get(handle).map(String::as_str), Ok("before-after"));
     }
 
