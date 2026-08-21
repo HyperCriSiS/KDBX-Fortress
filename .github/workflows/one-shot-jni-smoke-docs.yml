@@ -1,0 +1,32 @@
+name: JNI smoke docs finalizer
+
+"on":
+  push:
+    paths:
+      - ".github/scripts/finalize_jni_smoke_docs.py"
+      - ".github/workflows/one-shot-jni-smoke-docs.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/android-jni-capability-spike
+
+      - name: Apply evidence-backed documentation update
+        run: python .github/scripts/finalize_jni_smoke_docs.py
+
+      - name: Remove one-shot helpers and commit
+        run: |
+          set -euo pipefail
+          git rm .github/scripts/finalize_jni_smoke_docs.py .github/workflows/one-shot-jni-smoke-docs.yml
+          git add ROADMAP.md docs/adr/0002-kotlin-rust-interop.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: record proven JNI capability boundary"
+          git push origin HEAD:feat/android-jni-capability-spike
