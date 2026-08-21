@@ -1,0 +1,87 @@
+name: One-shot concrete vault owner docs
+
+on:
+  push:
+    branches: [feat/concrete-vault-owner]
+    paths: [.github/workflows/one-shot-owner-docs.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/concrete-vault-owner
+      - name: Update roadmap and API evidence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          roadmap_path = Path("ROADMAP.md")
+          roadmap = roadmap_path.read_text()
+
+          old_status = "Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary and initial engine-owned secret-memory/zeroization gate are complete. The stable handle/API parent remains open until a concrete Rust vault owner/lifecycle API and Kotlin/JNI wrapper are integrated. The next security-critical tranche is the concrete Rust vault owner: decrypted state must remain Rust-owned and `lock`/`lock_all` must immediately drop it before any production vault opening is exposed.**"
+          new_status = "Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary, initial engine-owned secret-memory/zeroization gate and concrete Rust vault-owner lifecycle are complete. The stable handle/API parent remains open until the Kotlin/JNI wrapper is integrated. The next security-critical tranche is the bounded Kotlin/JNI adapter while preserving Rust-only decrypted-state ownership and the proven `lock`/`lock_all` invalidation semantics.**"
+          assert old_status in roadmap
+          roadmap = roadmap.replace(old_status, new_status)
+
+          old_owner = "  - [ ] Integrate the registry into a concrete Rust vault owner/lifecycle API; preserve Rust-only ownership of decrypted vault state, prove immediate owner drop on `lock`/`lock_all`, and only then expose the bounded read-only owner through Kotlin/JNI."
+          new_owner = "  - [x] Integrate the registry into a concrete Rust vault owner/lifecycle API; `VaultCore` now retains bounded-open `Database` instances only in private Rust `VaultSession` owners behind generation-checked handles, and `lock_vault`/`lock_all` immediately drop those owners while invalidating stale generations.\n  - [ ] Add the bounded Kotlin/JNI wrapper over `VaultCore` without exposing decrypted `Database` values, raw pointers, registry internals, or immutable JVM secret strings."
+          assert old_owner in roadmap
+          roadmap = roadmap.replace(old_owner, new_owner)
+
+          old_block1 = "1. **Production KDBX open/decrypt exposure is blocked on completion of the concrete Rust vault owner/lifecycle API.** The foundational opaque generation-checked handle registry and the defined initial Fortress/fork-owned secret-memory hygiene gate are implemented, while the Phase-0 accepted/adversarial corpus, write-policy/round-trip evidence, Fortress-owned resource-budget gates and independent KeePassXC/KeePass reopening gates are complete for the defined surface."
+          new_block1 = "1. **Production KDBX open/decrypt exposure to Android is blocked on the Kotlin/JNI wrapper.** The concrete Rust `VaultCore` owner now retains decrypted databases behind generation-checked handles and proves bounded open, capacity isolation, stale-handle rejection and immediate drop/invalidation on `lock_vault`/`lock_all`; decrypted database objects still do not cross the Rust boundary."
+          assert old_block1 in roadmap
+          roadmap = roadmap.replace(old_block1, new_block1)
+
+          old_block2 = "2. **Production Android vault operations remain blocked on the concrete Rust owner/API plus Kotlin/JNI wrapper.** The initial Rust/Fortress secret-memory gate is complete, but JNI must preserve the same byte-oriented credential and Rust-only decrypted-state ownership invariants."
+          new_block2 = "2. **Production Android vault operations remain blocked on the Kotlin/JNI wrapper and its lifecycle/error-boundary validation.** JNI must preserve byte-oriented credentials, Rust-only decrypted-state ownership, opaque positive handles, sanitized errors and explicit lock semantics."
+          assert old_block2 in roadmap
+          roadmap = roadmap.replace(old_block2, new_block2)
+
+          old_next = "1. [ ] Integrate the proven handle registry into a concrete Rust vault owner/lifecycle API while preserving the invariant that decrypted vault state remains inside Rust; prove `lock`/`lock_all` immediately drop the concrete owner and invalidate all stale generations.\n2. [ ] Add the Kotlin/JNI wrapper only after the concrete Rust owner/API gate is proven, beginning with bounded read-only vault operations, byte-oriented credentials and stable sanitized errors.\n3. [ ] Expand lifecycle/concurrency/property/fuzz coverage around the concrete owner before broadening the production API."
+          new_next = "1. [ ] Add the Kotlin/JNI wrapper over the proven `VaultCore` owner, beginning with bounded open/lock/is-valid operations, byte-oriented credentials, opaque positive handles and stable sanitized errors.\n2. [ ] Prove JNI panic containment, invalid/stale-handle behavior and Android lifecycle lock paths without allowing decrypted database ownership to escape Rust.\n3. [ ] Expand lifecycle/concurrency/property/fuzz coverage before adding metadata/secret retrieval or mutation APIs."
+          assert old_next in roadmap
+          roadmap = roadmap.replace(old_next, new_next)
+          roadmap_path.write_text(roadmap)
+
+          api_path = Path("docs/VAULT_CORE_API.md")
+          api = api_path.read_text()
+          marker = "## Concrete Rust vault owner — implemented Phase 0 tranche"
+          assert marker not in api
+          api += """
+
+## Concrete Rust vault owner — implemented Phase 0 tranche
+
+The platform-neutral core now exposes `VaultCore` as the sole owner of live decrypted vault sessions. `VaultCore::new(max_open_vaults)` configures an explicit bounded registry; no global registry or singleton is introduced.
+
+`VaultCore::open_vault(data, credentials, limits)` uses only the existing bounded credential-aware KDBX open path. Preflight, authenticated engine parsing/decompression and post-decrypt structural validation complete before a `VaultHandle` is returned. The decrypted `keepass::Database` is moved into a private `VaultSession` and never returned to the caller. If registry insertion fails because capacity is exhausted, the freshly opened database is dropped before the capacity error returns.
+
+Lifecycle behavior proven by unit tests and the full Foundation gate:
+
+- an accepted vault produces only an opaque generation-checked `VaultHandle`;
+- wrong credentials fail before any live handle is created;
+- explicit capacity failure leaves existing live vaults untouched;
+- `lock_vault` is idempotent and immediately drops the private Rust owner;
+- a stale handle remains invalid after the slot is reused with a new generation;
+- `lock_all` is idempotent and invalidates every live owner;
+- the same owner code passes KeePassXC/KeePass interoperability and Android ARM64/x86_64 compilation.
+
+`VaultCoreError` exposes only typed Fortress errors (`Open`, `CapacityExceeded`, `InvalidHandle`) and carries no decrypted content or registry details. `VaultSession` is intentionally private and has no public `Debug` surface.
+
+This tranche still does **not** expose JNI, Android lifecycle integration, metadata/secret retrieval, mutation operations, raw database references, pointers, or concurrency guarantees. The next boundary is the small Kotlin/JNI adapter over `VaultCore`; it must preserve Rust-only decrypted-state ownership and the documented secret-memory non-guarantees.
+"""
+          api_path.write_text(api)
+      - name: Remove helper
+        run: rm .github/workflows/one-shot-owner-docs.yml
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ROADMAP.md docs/VAULT_CORE_API.md .github/workflows/one-shot-owner-docs.yml
+          git commit -m "docs: record concrete Rust vault owner gate"
+          git push origin HEAD:feat/concrete-vault-owner
