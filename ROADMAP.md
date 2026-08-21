@@ -10,11 +10,11 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate is complete and the first stable-handle tranche now establishes an opaque generation-checked `VaultHandle` plus a bounded Rust-owned registry with stale-handle rejection and idempotent lock/drop semantics. The stable handle/API parent remains open until a concrete Rust vault owner/lifecycle API and Kotlin/JNI wrapper are integrated. Secret-buffer memory hygiene/zeroization is the next security gate and must be proven before production vault opening is exposed.**
+Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary and initial engine-owned secret-memory/zeroization gate are complete. The stable handle/API parent remains open until a concrete Rust vault owner/lifecycle API and Kotlin/JNI wrapper are integrated. The next security-critical tranche is the concrete Rust vault owner: decrypted state must remain Rust-owned and `lock`/`lock_all` must immediately drop it before any production vault opening is exposed.**
 
 Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203db7b125086dd9455790a1bb5f`, with the authenticated XML adversarial closure validated on PR #21 before merge.
 
-- The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `86c53bbb1bf35c3c83d5e25dfa13942e062b9293` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach. The fork's `test_fixture_tools` raw-XML writer is feature-gated and enabled only for dev/test builds so authenticated malformed decrypted XML can be exercised without widening the production API.
+- The Rust core is an isolated `cdylib`/JNI scaffold and pins the Fortress `keepass-rs` fork at commit `bdf81aa77cafdf6651c0909d4dbcceb2a15ad227` (package line based on 0.13.18) as the initial read-validation KDBX engine behind an engine-neutral validation approach. The fork's `test_fixture_tools` raw-XML writer is feature-gated and enabled only for dev/test builds so authenticated malformed decrypted XML can be exercised without widening the production API.
 - Deterministic generated fixtures and executable Rust tests cover KDBX 3.1 and KDBX 4 variants, including AES-KDF, Argon2d, Argon2id, AES-256-CBC, ChaCha20 outer encryption, protected fields, Unicode, attachments, `CustomData`, and password + raw-32-byte key-file composite credentials.
 - Negative coverage includes malformed/truncated headers, invalid signatures, incorrect credential combinations, derived unsupported version/cipher/KDF cases, truncated encrypted payloads, corrupted header/payload authentication data, representative typed resource-budget failures, and authenticated post-decrypt XML failures covering mismatched tags, invalid Root/Entry nesting, invalid UUID encoding and duplicate group/entry UUIDs.
 - Fixture hashes/manifests are validated in CI; required Android Rust targets and exported native symbols are checked by the foundation workflow.
@@ -68,7 +68,10 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
 - [ ] Define the stable Rust handle/API model and Kotlin wrapper while preserving the invariant that decrypted vault state remains inside Rust.
   - [x] Establish the opaque handle/registry foundation without production KDBX or JNI integration: positive 63-bit non-pointer `VaultHandle`, checked raw decoding, one-based slot + generation encoding, explicit registry capacity, stale-handle rejection after slot reuse, idempotent per-handle/global lock, immediate Rust-value drop, non-wrapping generation retirement and redacted `Debug` output.
   - [ ] Integrate the registry into a concrete Rust vault owner/lifecycle API and then a Kotlin/JNI wrapper; preserve Rust-only ownership of decrypted vault state and do not expose production `open_vault` until secret-buffer hygiene is proven.
-- [ ] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
+- [x] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
+  - [x] Fortress-owned password/key-file inputs use zeroizing byte owners; `VaultCredentials` is non-`Clone`, redacted in `Debug`, and bounded-open borrows the password only at the narrow engine conversion point.
+  - [x] Pin the hardened Fortress `keepass-rs` fork after its full CI matrix proved zeroizing ownership for key-element vectors, transformed/master/HMAC/per-block HMAC material, decrypted/decompressed plaintext scratch, protected-stream/inner-stream key bytes, unprotected stored values and Salsa20/ChaCha20 state.
+  - [x] Document the residual short-lived `hybrid_array::Array` hash/KDF boundary and explicitly avoid any total-process-memory-erasure claim.
 - [ ] Extend the JNI contract beyond the smoke boundary only after engine selection, parser limits and error semantics are proven.
 - [x] Build/upload compiled Rust `.so` artifacts for the required Android targets in CI.
 - [x] Validate native symbol/export linkage in CI.
@@ -221,16 +224,16 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Production KDBX open/decrypt exposure is blocked on secret-buffer memory hygiene/zeroization and completion of the concrete Rust vault owner/lifecycle API.** The foundational opaque generation-checked handle registry is implemented, while the Phase-0 accepted/adversarial corpus, write-policy/round-trip evidence, Fortress-owned resource-budget gates and independent KeePassXC/KeePass reopening gates are complete for the defined surface.
-2. **Production Android vault operations remain blocked on the concrete Rust owner/API plus Kotlin/JNI wrapper and secret-buffer memory hygiene.**
+1. **Production KDBX open/decrypt exposure is blocked on completion of the concrete Rust vault owner/lifecycle API.** The foundational opaque generation-checked handle registry and the defined initial Fortress/fork-owned secret-memory hygiene gate are implemented, while the Phase-0 accepted/adversarial corpus, write-policy/round-trip evidence, Fortress-owned resource-budget gates and independent KeePassXC/KeePass reopening gates are complete for the defined surface.
+2. **Production Android vault operations remain blocked on the concrete Rust owner/API plus Kotlin/JNI wrapper.** The initial Rust/Fortress secret-memory gate is complete, but JNI must preserve the same byte-oriented credential and Rust-only decrypted-state ownership invariants.
 3. **Production write exposure remains constrained by the documented KDBX 4.1-only initial write envelope and must continue to preserve the established unknown-XML fail-closed and independent-reference interoperability gates as the API grows.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
 ## Next prioritized work
 
-1. [ ] Define and implement the zeroization/secret-buffer strategy for passwords, composite-key material, key-file bytes and sensitive temporary buffers; document unavoidable upstream copies and eliminate Fortress-owned residual secret buffers on drop/error paths.
-2. [ ] Integrate the proven handle registry into a concrete Rust vault owner/lifecycle API while preserving the invariant that decrypted vault state remains inside Rust.
-3. [ ] Add the Kotlin/JNI wrapper only after the secret-memory and concrete Rust owner/API gates are proven, beginning with bounded read-only vault operations and stable sanitized errors.
+1. [ ] Integrate the proven handle registry into a concrete Rust vault owner/lifecycle API while preserving the invariant that decrypted vault state remains inside Rust; prove `lock`/`lock_all` immediately drop the concrete owner and invalidate all stale generations.
+2. [ ] Add the Kotlin/JNI wrapper only after the concrete Rust owner/API gate is proven, beginning with bounded read-only vault operations, byte-oriented credentials and stable sanitized errors.
+3. [ ] Expand lifecycle/concurrency/property/fuzz coverage around the concrete owner before broadening the production API.
 
 ## Completion status
 
