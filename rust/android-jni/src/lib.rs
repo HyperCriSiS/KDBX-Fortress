@@ -15,8 +15,8 @@ use std::{
     sync::Mutex,
 };
 use vault_core::{
-    KdbxOpenError, KdbxOpenLimits, KdbxPreflightError, VaultCore, VaultCoreError,
-    VaultCredentials, VaultHandle,
+    KdbxOpenError, KdbxOpenLimits, KdbxPreflightError, VaultCore, VaultCoreError, VaultCredentials,
+    VaultHandle,
 };
 
 /// ABI version of this Android/JNI adapter contract.
@@ -182,9 +182,8 @@ fn map_open_error(error: VaultCoreError) -> LifecycleStatus {
 }
 
 fn open_vault_response(data: &[u8], credentials: VaultCredentials) -> jlong {
-    let result = with_vault_core(|core| {
-        core.open_vault(data, &credentials, KdbxOpenLimits::default())
-    });
+    let result =
+        with_vault_core(|core| core.open_vault(data, &credentials, KdbxOpenLimits::default()));
 
     match result {
         Ok(Ok(handle)) => jlong::try_from(handle.as_raw())
@@ -352,9 +351,8 @@ mod tests {
 
     #[test]
     fn panic_is_contained_and_mapped_without_payload() {
-        let encoded = guarded_capability_response(|| -> CapabilityResponse {
-            panic!("synthetic panic")
-        });
+        let encoded =
+            guarded_capability_response(|| -> CapabilityResponse { panic!("synthetic panic") });
         let (status, value) = decode(encoded);
         assert_eq!(status, AdapterStatus::PanicContained as u32);
         assert_eq!(value, 0);
