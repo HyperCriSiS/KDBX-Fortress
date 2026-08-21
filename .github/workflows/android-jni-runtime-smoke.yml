@@ -16,6 +16,9 @@ jobs:
     name: Kotlin/Rust runtime smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
 
     steps:
       - name: Check out source
@@ -34,14 +37,44 @@ jobs:
         with:
           gradle-version: "9.5.0"
 
-      - name: Set up Android SDK tools
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - name: Install pinned Android command-line tools
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/commandlinetools-linux-15859902_latest.zip"
+          extracted="$RUNNER_TEMP/android-command-line-tools"
+          curl --fail --location --retry 3 \
+            --output "$archive" \
+            https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $archive" | sha256sum --check --strict
+          rm -rf "$extracted"
+          mkdir -p "$extracted" "$ANDROID_SDK_ROOT/cmdline-tools"
+          unzip -q "$archive" -d "$extracted"
+          mv "$extracted/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
       - name: Install Android SDK and NDK inputs
         run: |
           set -euo pipefail
+          sdkmanager --list --channel=3 > "$RUNNER_TEMP/sdk-packages.txt"
+
+          if grep -Fq "platforms;android-37.0" "$RUNNER_TEMP/sdk-packages.txt"; then
+            platform_package="platforms;android-37.0"
+          elif grep -Fq "platforms;android-CinnamonBun" "$RUNNER_TEMP/sdk-packages.txt"; then
+            platform_package="platforms;android-CinnamonBun"
+          else
+            echo "Android 17 SDK platform package not found in the approved package allowlist" >&2
+            grep -E "platforms;android-(37|CinnamonBun)" "$RUNNER_TEMP/sdk-packages.txt" || true
+            exit 1
+          fi
+
+          echo "Using Android 17 SDK package: $platform_package"
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-CinnamonBun" "build-tools;37.0.0" "ndk;28.2.13676358"
+          sdkmanager --channel=3 \
+            "platform-tools" \
+            "$platform_package" \
+            "build-tools;37.0.0" \
+            "ndk;28.2.13676358"
 
       - name: Build x86_64 Android JNI shared library
         run: |
