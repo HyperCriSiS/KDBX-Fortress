@@ -11,8 +11,8 @@ workspace = true
 
 [dependencies]
 zeroize = "=1.9.0"
-keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "86c53bbb1bf35c3c83d5e25dfa13942e062b9293", default-features = false }
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "bdf81aa77cafdf6651c0909d4dbcceb2a15ad227", default-features = false }
 
 [dev-dependencies]
 base64 = "=0.22.1"
-keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "86c53bbb1bf35c3c83d5e25dfa13942e062b9293", default-features = false, features = ["save_kdbx4", "test_fixture_tools"] }
+keepass = { git = "https://github.com/HyperCriSiS/keepass-rs", rev = "bdf81aa77cafdf6651c0909d4dbcceb2a15ad227", default-features = false, features = ["save_kdbx4", "test_fixture_tools"] }

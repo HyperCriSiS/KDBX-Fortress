@@ -11,25 +11,26 @@ Status: Phase 0 security boundary. This document defines what KDBX Fortress can 
 - Public Fortress errors never include password, key-file, engine error text, decrypted field content, or plaintext snippets.
 - Future JNI code must transfer credential bytes into `SecretBytes` as early as possible and must not keep a second long-lived Kotlin/Java `String` representation.
 
-## Fork hardening still required before decrypted vault state is attached to handles
+## Fork hardening now proven for the initial read-only owner boundary
 
-The upstream engine already wipes `DatabaseKey`, and protected entry values use `secrecy::SecretBox`. The current pinned fork still creates additional owned sensitive temporaries during KDBX processing. Before `VaultHandle` owns a decrypted `Database`, the fork must additionally wipe or RAII-wrap, on success and error paths:
+The pinned Fortress `keepass-rs` fork at `bdf81aa77cafdf6651c0909d4dbcceb2a15ad227` completed the defined Phase-0 engine-owned memory-hygiene gate under its full CI matrix. In addition to `DatabaseKey` and protected values, the fork now:
 
-- key elements derived from password/key-file/challenge response;
-- composite, transformed, master, HMAC and per-block HMAC keys;
-- cipher-owned key copies where the RustCrypto type does not itself provide the required drop guarantee;
-- decrypted, decompressed and serialized plaintext payload buffers;
-- KDBX4 inner random-stream key material;
-- unprotected entry/attachment values when their owning database is dropped.
+- stores key elements derived from password/key-file/challenge response in zeroizing owners;
+- moves transformed, master and KDBX4 HMAC keys into zeroizing byte owners immediately after the fixed-array hash/KDF API boundary;
+- zeroizes generated per-block HMAC keys;
+- zeroizes decrypted/compressed and decompressed KDBX3/KDBX4 plaintext scratch on success and error paths;
+- zeroizes KDBX3 protected-stream and KDBX4 inner-random-stream raw key material;
+- enables RustCrypto `zeroize` support for Salsa20 and ChaCha20 state;
+- explicitly zeroizes unprotected entry/attachment values when their owning `Value` is dropped.
 
-`Database::get_xml` is a legacy plaintext-returning engine helper. Fortress production code must not expose or use it as an API boundary.
+`Database::get_xml` remains a legacy plaintext-returning engine helper. Fortress production code must not expose or use it as an API boundary.
 
 ## Explicit non-guarantees
 
 Zeroization is defense-in-depth, not a claim that plaintext never existed in RAM. KDBX Fortress cannot reliably erase copies that have already been made by the allocator, operating system, compiler transformations outside `zeroize` guarantees, debugger/root access, crash dumps, swap, hardware snapshots, or opaque scratch/state inside third-party cryptographic and parser implementations.
 
-Hash/HMAC/Argon2, AES/Twofish/Salsa/ChaCha, XML parsing and decompression libraries can hold implementation-internal state. Their lifetime should be kept narrow and their own zeroization behavior audited separately; Fortress must not claim those hidden copies are erased unless the dependency provides such a guarantee.
+The current SHA/KDF helper APIs return short-lived `hybrid_array::Array` values that do not implement `Zeroize` in the pinned dependency combination. The fixed composite-key array and transient digest/KDF return arrays therefore cannot currently be proven wiped; Fortress moves their sensitive results into zeroizing owners immediately after those API boundaries. More generally, Hash/HMAC/Argon2, AES/Twofish, XML parsing and decompression libraries can retain implementation-internal state outside Fortress ownership. Fortress must not claim those hidden copies are erased unless the dependency itself provides that guarantee. Salsa20 and ChaCha20 are an exception in the pinned fork because their RustCrypto `zeroize` features are explicitly enabled.
 
 ## Lock invariant for the next lifecycle tranche
 
-A future `VaultHandle::lock` may be treated as a security boundary only after the decrypted vault owner has been audited so dropping it destroys all Fortress/fork-owned sensitive buffers covered above. The existing handle registry already invalidates the handle and drops the owned Rust value immediately; this document deliberately does **not** yet claim that an entire parsed database is comprehensively wiped on lock.
+The engine-owned memory-hygiene prerequisites for attaching a decrypted database to the Rust handle registry are now satisfied for the defined initial read-only boundary. The next tranche must introduce a concrete Rust vault owner whose `Drop` path owns the parsed database and any Fortress-side session state, then prove that `VaultHandle::lock`/`lock_all` immediately destroy that owner while invalidating the generation-checked handle. This still does **not** imply total process-memory erasure because the explicit non-guarantees above remain in force.
