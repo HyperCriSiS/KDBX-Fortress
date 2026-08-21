@@ -171,3 +171,24 @@ The first tranche is deliberately smaller than the full lifecycle API. It curren
 - redacted handle `Debug` output.
 
 It does **not** yet claim production KDBX ownership, JNI exposure, secret-memory zeroization, concurrency semantics, or Android lifecycle integration.
+
+
+## Concrete Rust vault owner — implemented Phase 0 tranche
+
+The platform-neutral core now exposes `VaultCore` as the sole owner of live decrypted vault sessions. `VaultCore::new(max_open_vaults)` configures an explicit bounded registry; no global registry or singleton is introduced.
+
+`VaultCore::open_vault(data, credentials, limits)` uses only the existing bounded credential-aware KDBX open path. Preflight, authenticated engine parsing/decompression and post-decrypt structural validation complete before a `VaultHandle` is returned. The decrypted `keepass::Database` is moved into a private `VaultSession` and never returned to the caller. If registry insertion fails because capacity is exhausted, the freshly opened database is dropped before the capacity error returns.
+
+Lifecycle behavior proven by unit tests and the full Foundation gate:
+
+- an accepted vault produces only an opaque generation-checked `VaultHandle`;
+- wrong credentials fail before any live handle is created;
+- explicit capacity failure leaves existing live vaults untouched;
+- `lock_vault` is idempotent and immediately drops the private Rust owner;
+- a stale handle remains invalid after the slot is reused with a new generation;
+- `lock_all` is idempotent and invalidates every live owner;
+- the same owner code passes KeePassXC/KeePass interoperability and Android ARM64/x86_64 compilation.
+
+`VaultCoreError` exposes only typed Fortress errors (`Open`, `CapacityExceeded`, `InvalidHandle`) and carries no decrypted content or registry details. `VaultSession` is intentionally private and has no public `Debug` surface.
+
+This tranche still does **not** expose JNI, Android lifecycle integration, metadata/secret retrieval, mutation operations, raw database references, pointers, or concurrency guarantees. The next boundary is the small Kotlin/JNI adapter over `VaultCore`; it must preserve Rust-only decrypted-state ownership and the documented secret-memory non-guarantees.

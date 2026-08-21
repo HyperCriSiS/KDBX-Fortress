@@ -1,15 +1,16 @@
 //! Platform-neutral Rust vault-core boundary.
 //!
-//! Phase 0 keeps production KDBX decryption, vault parsing, JNI, Android,
-//! persistence, and networking disabled. The core may inspect non-secret outer-
-//! header metadata only to enforce Fortress-owned resource limits before any
-//! expensive KDF/decrypt path is entered.
+//! Phase 0 keeps JNI, Android, persistence, networking, and broad production
+//! vault operations disabled. Bounded KDBX decryption may be retained only
+//! inside the concrete Rust-owned [`VaultCore`] session registry; callers
+//! receive opaque generation-checked handles rather than decrypted databases.
 
 mod bounded_open;
 mod credentials;
 mod handle_registry;
 mod postflight;
 mod preflight;
+mod vault_owner;
 
 pub use bounded_open::{
     KdbxOpenError, KdbxOpenLimits, open_kdbx_bounded, open_kdbx_bounded_with_credentials,
@@ -21,6 +22,7 @@ pub use preflight::{
     KdbxPreflightError, KdbxPreflightReport, KdbxResourceLimits, KdfField, KdfPreflight,
     check_kdbx_input_size, preflight_kdbx,
 };
+pub use vault_owner::{VaultCore, VaultCoreError};
 
 /// ABI contract version exposed to future platform adapters.
 ///
