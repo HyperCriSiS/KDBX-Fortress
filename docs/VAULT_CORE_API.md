@@ -20,7 +20,7 @@ The Rust vault core is the sole owner of KDBX parsing, cryptographic operations 
 
 Opaque process-local identifier with generation checking. It is **not a pointer** and is never persisted. Lock/drop invalidates it.
 
-The Phase-0 handle foundation uses a positive 63-bit integer representation suitable for a future JNI `jlong` / Kotlin `Long` bridge:
+The Phase-0 handle foundation uses a positive 63-bit integer representation that is now carried by the bounded JNI adapter as `jlong` / Kotlin `Long`:
 
 - low 32 bits: one-based registry slot token; zero is invalid;
 - next 31 bits: non-zero generation;
@@ -30,7 +30,7 @@ Bridge callers must treat this value as opaque process-local capability metadata
 
 The registry is explicitly bounded. Lock immediately drops the Rust-owned session value and advances its generation; repeated lock is a no-op. Reusing a vacant slot therefore produces a different handle, so a copied stale handle cannot revive. Generation exhaustion permanently retires the slot instead of wrapping. `lock_all` is likewise idempotent and drops every live Rust-owned value. Handle `Debug` output is redacted.
 
-This foundation is implemented independently of production KDBX state and JNI. The registry remains internal until the concrete Rust vault-owner API is introduced after the secret-memory gate.
+The registry remains internal to Rust. The concrete `VaultCore` owner and Android/JNI ABI v2 expose only opaque handle values plus bounded lifecycle operations; slot/generation structure and decrypted database values are never exported.
 
 ### `EntryId` / `GroupId`
 
@@ -54,11 +54,11 @@ Stable categories at minimum: invalid credentials, unsupported format/feature, c
 
 ## Pre-open resource preflight
 
-Before a future production `open_vault` invokes the selected KDBX engine, Fortress applies a non-secret preflight for encrypted input size and outer-header/KDF resource limits. It does not accept credentials, derive keys or decrypt payload bytes. Decompression and post-decrypt structure limits remain part of the Phase 0 gate.
+Before the current bounded `open_vault` path invokes the selected KDBX engine, Fortress applies a non-secret preflight for encrypted input size and outer-header/KDF resource limits. The Android adapter also checks the Java KDBX array length before creating the additional Rust copy. Preflight itself does not accept credentials, derive keys or decrypt payload bytes; decompression and post-decrypt structure limits remain enforced by the authenticated bounded-open path.
 
 ## Lifecycle API
 
-Conceptual API; exact language binding may differ while preserving semantics.
+Conceptual core API; the current Android/JNI ABI v2 intentionally exposes only `open`, `lock` and `is-valid` and does not yet return `VaultSummary` or expose create/read/mutation operations.
 
 ```text
 open_vault(kdbx_bytes, credentials, limits) -> VaultHandle + VaultSummary
@@ -150,11 +150,12 @@ The Rust core may expose entry matching/search primitives over normalized metada
 ## Initial implementation sequence
 
 1. [x] Implement the opaque generation-checked handle registry + idempotent lock semantics without production KDBX parsing/JNI integration.
-2. [ ] Complete the secret-buffer zeroization/memory-hygiene gate before decrypted vault state is retained behind handles.
-3. [ ] Integrate the registry into a concrete Rust vault owner and add read-only `open_vault` against deterministic KDBX fixtures.
-4. [ ] Add the Kotlin/JNI wrapper, group/entry metadata listing and explicit single-secret retrieval with stable sanitized errors.
-5. [ ] Add lifecycle/concurrency/property/fuzz coverage around the concrete owner/bridge boundary.
-6. [ ] Only then add mutation and serialization/round-trip support.
+2. [x] Complete the secret-buffer zeroization/memory-hygiene gate before decrypted vault state is retained behind handles.
+3. [x] Integrate the registry into a concrete Rust vault owner and add bounded read-only `open_vault` against deterministic KDBX fixtures.
+4. [x] Add the executable Android/Kotlin caller and the bounded JNI lifecycle wrapper (`open`/`lock`/`is-valid`) with byte-oriented credentials, opaque handles and stable sanitized errors.
+5. [ ] Prove JNI panic containment, invalid/stale-handle behavior and Android lifecycle lock paths, then add lifecycle/concurrency/property/fuzz coverage around the concrete owner/bridge boundary.
+6. [ ] Add metadata listing and explicit single-secret retrieval only after the lifecycle-hardening gates pass.
+7. [ ] Only then add mutation and production serialization/round-trip exposure.
 
 ### Current handle-registry implementation evidence
 
@@ -170,7 +171,7 @@ The first tranche is deliberately smaller than the full lifecycle API. It curren
 - destruction of remaining live values when the registry itself is dropped;
 - redacted handle `Debug` output.
 
-It does **not** yet claim production KDBX ownership, JNI exposure, secret-memory zeroization, concurrency semantics, or Android lifecycle integration.
+The registry foundation by itself does **not** establish concurrency semantics or Android lifecycle integration; those remain separate hardening gates even though KDBX ownership, secret-memory work and bounded JNI lifecycle exposure are now implemented in later tranches.
 
 
 ## Concrete Rust vault owner — implemented Phase 0 tranche
@@ -191,4 +192,23 @@ Lifecycle behavior proven by unit tests and the full Foundation gate:
 
 `VaultCoreError` exposes only typed Fortress errors (`Open`, `CapacityExceeded`, `InvalidHandle`) and carries no decrypted content or registry details. `VaultSession` is intentionally private and has no public `Debug` surface.
 
-This tranche still does **not** expose JNI, Android lifecycle integration, metadata/secret retrieval, mutation operations, raw database references, pointers, or concurrency guarantees. The next boundary is the small Kotlin/JNI adapter over `VaultCore`; it must preserve Rust-only decrypted-state ownership and the documented secret-memory non-guarantees.
+This core-owner tranche is now consumed by the bounded Android/JNI lifecycle adapter described below. Android lifecycle integration, metadata/secret retrieval, mutation operations, raw database references, pointers and concurrency guarantees remain outside this tranche.
+
+
+## Android/JNI lifecycle adapter — implemented Phase 0 tranche
+
+Adapter ABI 2 exposes exactly four `NativeBridge` methods: the non-secret capability probe plus bounded `open`, `lock` and `is-valid`. `rust/vault-core` remains JNI/Android-free; the separate `rust/android-jni` crate owns the process-local bridge `VaultCore`.
+
+The current ingress and ownership contract is deliberately narrow:
+
+- Java/Kotlin supplies KDBX, password and optional key-file material as byte arrays, never immutable secret strings; password and key-file components are nullable so absence is distinct from an explicitly empty component.
+- the adapter rejects a KDBX array beyond the Fortress encrypted-input ceiling before the JNI-to-Rust copy, bounds password bytes to 4 KiB, key-file bytes to 1 MiB, and allows at most four simultaneously open vault owners;
+- successful opens return only positive opaque process-local handles; open/lock failures use frozen negative adapter status codes, while `is-valid` returns `1`/`0` except for an internal adapter failure;
+- KDBX engine diagnostics are collapsed into sanitized categories rather than copied into Kotlin;
+- Rust copies of credential byte vectors are moved immediately into `VaultCredentials` zeroizing owners;
+- a poisoned bridge-owner mutex fails closed by locking all retained vaults before the adapter resumes service;
+- the JNI source-policy and binary-symbol gates allow exactly the four approved exports and continue to forbid network dependencies and additional unsafe code paths.
+
+The Android emulator gate packages a deterministic KDBX fixture and proves `open → is-valid → lock → stale`, including idempotent locking of a structurally valid stale handle and rejection of a malformed zero handle. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
+
+This does **not** yet prove all lifecycle/security behavior required for a production bridge. The next gate is explicit JNI panic containment plus invalid/stale-handle and Android lifecycle-triggered lock-path testing, followed by concurrency/property/fuzz coverage. Metadata/secret retrieval remains blocked until that hardening work passes.

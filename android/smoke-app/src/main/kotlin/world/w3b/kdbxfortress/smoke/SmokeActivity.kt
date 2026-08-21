@@ -11,6 +11,16 @@ class SmokeActivity : Activity() {
 
         val result = try {
             NativeBridge.verifyRuntimeBoundary()
+
+            val kdbx = assets.open(FIXTURE_NAME).use { it.readBytes() }
+            val password = FIXTURE_PASSWORD.toByteArray(Charsets.UTF_8)
+            try {
+                NativeBridge.verifyVaultLifecycle(kdbx, password)
+            } finally {
+                password.fill(0)
+                kdbx.fill(0)
+            }
+
             "PASS"
         } catch (error: Throwable) {
             "FAIL:${error.javaClass.simpleName}"
@@ -22,5 +32,7 @@ class SmokeActivity : Activity() {
 
     private companion object {
         const val RESULT_FILE = "jni-smoke-result"
+        const val FIXTURE_NAME = "basic-kdbx4.kdbx"
+        const val FIXTURE_PASSWORD = "fixture-password"
     }
 }

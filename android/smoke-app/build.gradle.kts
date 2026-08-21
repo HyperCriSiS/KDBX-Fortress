@@ -20,6 +20,12 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("main") {
+            assets.srcDir("../../test-fixtures/kdbx")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
