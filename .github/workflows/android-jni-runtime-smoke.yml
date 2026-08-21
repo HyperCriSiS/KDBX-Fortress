@@ -34,6 +34,9 @@ jobs:
         with:
           gradle-version: "9.5.0"
 
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
       - name: Install Android SDK and NDK inputs
         run: |
           set -euo pipefail
