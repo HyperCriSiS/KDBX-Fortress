@@ -108,22 +108,4 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            set -eu
-            package="world.w3b.kdbxfortress.smoke"
-            apk="android/smoke-app/build/outputs/apk/debug/smoke-app-debug.apk"
-
-            adb install -r "$apk"
-            adb shell pm clear "$package"
-            adb shell am start -W -n "$package/.SmokeActivity"
-
-            result=""
-            for attempt in $(seq 1 20); do
-              if result=$(adb shell run-as "$package" cat files/jni-smoke-result 2>/dev/null | tr -d '\r'); then
-                break
-              fi
-              sleep 1
-            done
-
-            echo "Android JNI runtime result: $result"
-            test "$result" = "PASS"
+          script: bash tools/run_android_jni_runtime_smoke.sh
