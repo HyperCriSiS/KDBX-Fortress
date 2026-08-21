@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;28.2.13676358"
+          sdkmanager "platforms;android-CinnamonBun" "build-tools;37.0.0" "ndk;28.2.13676358"
 
       - name: Build x86_64 Android JNI shared library
         run: |
