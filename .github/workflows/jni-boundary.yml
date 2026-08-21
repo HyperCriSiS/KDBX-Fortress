@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  exported-smoke-boundary:
-    name: Exported JNI smoke boundary
+  exported-lifecycle-boundary:
+    name: Exported JNI lifecycle boundary
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -31,12 +31,26 @@ jobs:
       - name: Build Android/JNI cdylib on host
         run: cargo build --manifest-path rust/Cargo.toml --package kdbx-fortress-android-jni
 
-      - name: Verify exported JNI symbol
+      - name: Verify exported JNI symbols
         run: |
           set -euo pipefail
           library="rust/target/debug/libkdbx_fortress_android_jni.so"
-          symbol="Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe"
+          expected="$RUNNER_TEMP/expected-jni-symbols.txt"
+          actual="$RUNNER_TEMP/actual-jni-symbols.txt"
 
           test -s "$library"
           command -v nm >/dev/null
-          nm -D --defined-only "$library" | awk '{print $3}' | grep -Fx "$symbol"
+
+          cat > "$expected" <<'EOF'
+          Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe
+          Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsVaultHandleValid
+          Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockVault
+          Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeOpenVault
+          EOF
+
+          nm -D --defined-only "$library" \
+            | awk '{print $3}' \
+            | grep '^Java_world_w3b_kdbxfortress_bridge_NativeBridge_native' \
+            | sort > "$actual"
+
+          diff -u "$expected" "$actual"

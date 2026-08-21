@@ -17,23 +17,24 @@ FORBIDDEN_SOURCE_FRAGMENTS = (
     "tokio::",
     "reqwest::",
     "ureq::",
-    "VaultCore",
-    "VaultCredentials",
     "SecretBytes",
-    "open_vault",
-    "lock_vault",
-    "lock_all",
     "unsafe fn",
     "unsafe extern",
     "unsafe {",
 )
-EXPECTED_EXPORT = "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe"
+EXPECTED_EXPORTS = (
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe",
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeOpenVault",
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockVault",
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsVaultHandleValid",
+)
+JNI_EXPORT_PREFIX = "Java_world_w3b_kdbxfortress_bridge_NativeBridge_native"
 EXPECTED_UNSAFE_ALLOW = "#[allow(unsafe_code)]"
 EXPECTED_UNSAFE_EXPORT = "#[unsafe(no_mangle)]"
 
 
 class PolicyError(RuntimeError):
-    """Raised when the Android/JNI smoke-boundary policy is violated."""
+    """Raised when the Android/JNI lifecycle policy is violated."""
 
 
 def load_toml(path: Path) -> dict:
@@ -68,7 +69,7 @@ def check(root: Path) -> None:
     dependencies = adapter.get("dependencies", {})
     if set(dependencies) != ALLOWED_DEPENDENCIES:
         raise PolicyError(
-            "Android/JNI smoke adapter dependencies must be exactly jni and vault-core"
+            "Android/JNI adapter dependencies must be exactly jni and vault-core"
         )
 
     jni = dependencies.get("jni")
@@ -93,16 +94,25 @@ def check(root: Path) -> None:
     source_files = sorted(adapter_src.rglob("*.rs"))
     source = "\n".join(path.read_text(encoding="utf-8") for path in source_files)
 
-    if source.count(EXPECTED_UNSAFE_ALLOW) != 1:
-        raise PolicyError("smoke adapter must contain exactly one local unsafe lint exception")
-    if source.count(EXPECTED_UNSAFE_EXPORT) != 1:
-        raise PolicyError("smoke adapter must contain exactly one unsafe export attribute")
-    if source.count(EXPECTED_EXPORT) != 1:
-        raise PolicyError("smoke adapter must expose exactly one approved JNI symbol")
+    if source.count(EXPECTED_UNSAFE_ALLOW) != len(EXPECTED_EXPORTS):
+        raise PolicyError(
+            "adapter must contain one local unsafe lint exception per approved JNI export"
+        )
+    if source.count(EXPECTED_UNSAFE_EXPORT) != len(EXPECTED_EXPORTS):
+        raise PolicyError(
+            "adapter must contain one unsafe export attribute per approved JNI export"
+        )
+    for symbol in EXPECTED_EXPORTS:
+        if source.count(symbol) != 1:
+            raise PolicyError(
+                f"adapter must expose approved JNI symbol exactly once: {symbol}"
+            )
+    if source.count(JNI_EXPORT_PREFIX) != len(EXPECTED_EXPORTS):
+        raise PolicyError("adapter must not expose unapproved NativeBridge JNI symbols")
 
     for fragment in FORBIDDEN_SOURCE_FRAGMENTS:
         if fragment in source:
-            raise PolicyError(f"forbidden Android/JNI smoke source fragment: {fragment}")
+            raise PolicyError(f"forbidden Android/JNI source fragment: {fragment}")
 
 
 def expect_failure(root: Path, expected_fragment: str) -> None:
@@ -138,7 +148,7 @@ def self_test(real_root: Path) -> None:
             + '\nfn forbidden_network() { let _ = std::net::TcpStream::connect("127.0.0.1:1"); }\n',
             encoding="utf-8",
         )
-        expect_failure(temp_root, "forbidden Android/JNI smoke source fragment: std::net")
+        expect_failure(temp_root, "forbidden Android/JNI source fragment: std::net")
 
     with tempfile.TemporaryDirectory(prefix="android-jni-policy-") as temp:
         temp_root = Path(temp) / "project"
@@ -148,7 +158,7 @@ def self_test(real_root: Path) -> None:
             lib.read_text(encoding="utf-8") + "\nunsafe fn forbidden_unsafe() {}\n",
             encoding="utf-8",
         )
-        expect_failure(temp_root, "forbidden Android/JNI smoke source fragment: unsafe fn")
+        expect_failure(temp_root, "forbidden Android/JNI source fragment: unsafe fn")
 
     with tempfile.TemporaryDirectory(prefix="android-jni-policy-") as temp:
         temp_root = Path(temp) / "project"
@@ -160,7 +170,7 @@ def self_test(real_root: Path) -> None:
         manifest.write_text(text, encoding="utf-8")
         expect_failure(temp_root, "must build exactly cdylib and rlib")
 
-    print("Android/JNI policy self-test OK")
+    print("Android/JNI lifecycle policy self-test OK")
 
 
 def main() -> None:
@@ -174,7 +184,7 @@ def main() -> None:
             self_test(root)
         else:
             check(root)
-            print("Android/JNI policy OK")
+            print("Android/JNI lifecycle policy OK")
     except (PolicyError, AssertionError) as error:
         raise SystemExit(f"Android/JNI policy FAILED: {error}") from error
 
