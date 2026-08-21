@@ -109,7 +109,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             package="world.w3b.kdbxfortress.smoke"
             apk="android/smoke-app/build/outputs/apk/debug/smoke-app-debug.apk"
 
