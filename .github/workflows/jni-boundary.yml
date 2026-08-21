@@ -1,0 +1,42 @@
+name: JNI Boundary
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jni-boundary-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exported-smoke-boundary:
+    name: Exported JNI smoke boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify pinned Rust toolchain
+        run: |
+          rustc --version --verbose
+          cargo --version
+
+      - name: Build Android/JNI cdylib on host
+        run: cargo build --manifest-path rust/Cargo.toml --package kdbx-fortress-android-jni
+
+      - name: Verify exported JNI symbol
+        run: |
+          set -euo pipefail
+          library="rust/target/debug/libkdbx_fortress_android_jni.so"
+          symbol="Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe"
+
+          test -s "$library"
+          command -v nm >/dev/null
+          nm -D --defined-only "$library" | awk '{print $3}' | grep -Fx "$symbol"
