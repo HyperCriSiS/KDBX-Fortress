@@ -87,7 +87,9 @@ where
 /// The environment/class parameters are present only because the JVM supplies
 /// them for a static native method.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe<'local>(
+pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe<
+    'local,
+>(
     _env: EnvUnowned<'local>,
     _class: JClass<'local>,
     request: jint,
