@@ -1,0 +1,87 @@
+name: Android JNI Runtime Smoke
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-jni-runtime-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kotlin-rust-runtime:
+    name: Kotlin/Rust runtime smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.2.0
+        with:
+          gradle-version: "9.5.0"
+
+      - name: Install Android SDK and NDK inputs
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;28.2.13676358"
+
+      - name: Build x86_64 Android JNI shared library
+        run: |
+          set -euo pipefail
+          rustup target add x86_64-linux-android
+          toolchain="$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$toolchain/x86_64-linux-android26-clang"
+          export CC_x86_64_linux_android="$toolchain/x86_64-linux-android26-clang"
+          export AR_x86_64_linux_android="$toolchain/llvm-ar"
+          cargo build \
+            --manifest-path rust/Cargo.toml \
+            --package kdbx-fortress-android-jni \
+            --target x86_64-linux-android
+          install -D \
+            rust/target/x86_64-linux-android/debug/libkdbx_fortress_android_jni.so \
+            android/smoke-app/src/main/jniLibs/x86_64/libkdbx_fortress_android_jni.so
+
+      - name: Assemble smoke APK
+        run: gradle --no-daemon -p android :smoke-app:assembleDebug
+
+      - name: Execute Kotlin/JNI call on Android emulator
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            package="world.w3b.kdbxfortress.smoke"
+            apk="android/smoke-app/build/outputs/apk/debug/smoke-app-debug.apk"
+
+            adb install -r "$apk"
+            adb shell pm clear "$package"
+            adb shell am start -W -n "$package/.SmokeActivity"
+
+            result=""
+            for attempt in $(seq 1 20); do
+              if result=$(adb shell run-as "$package" cat files/jni-smoke-result 2>/dev/null | tr -d '\r'); then
+                break
+              fi
+              sleep 1
+            done
+
+            echo "Android JNI runtime result: $result"
+            test "$result" = "PASS"
