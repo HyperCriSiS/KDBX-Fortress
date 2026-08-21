@@ -1,0 +1,25 @@
+[package]
+name = "kdbx-fortress-android-jni"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# JNI exports require the Rust 2024 `unsafe(no_mangle)` attribute. The adapter is
+# the only crate allowed to contain that narrow FFI surface; vault-core continues
+# to inherit the workspace-wide `unsafe_code = forbid` policy.
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+
+[dependencies]
+jni = { version = "=0.22.4", default-features = false }
+vault-core = { package = "kdbx-fortress-vault-core", path = "../vault-core" }
