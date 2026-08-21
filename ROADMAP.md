@@ -10,7 +10,7 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary, initial engine-owned secret-memory/zeroization gate and concrete Rust vault-owner lifecycle are complete. The stable handle/API parent remains open until the Kotlin/JNI wrapper is integrated. The next security-critical tranche is the bounded Kotlin/JNI adapter while preserving Rust-only decrypted-state ownership and the proven `lock`/`lock_all` invalidation semantics.**
+Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary, initial engine-owned secret-memory/zeroization gate, concrete Rust vault-owner lifecycle, and non-secret Rust/JNI capability boundary are complete. The stable handle/API parent remains open until an executable Android/Kotlin caller and bounded vault-lifecycle JNI operations are proven. The next security-critical tranche is the real Android/Kotlin load-and-call smoke test while preserving Rust-only decrypted-state ownership and the proven `lock`/`lock_all` invalidation semantics.**
 
 Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203db7b125086dd9455790a1bb5f`, with the authenticated XML adversarial closure validated on PR #21 before merge.
 
@@ -21,7 +21,7 @@ Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203
 - The bounded decompression/attachment-expansion integration was rebuilt cleanly on current `main` and merged through PR #12 after the full `Foundation` workflow passed, including Rust tests and Android ARM64/x86_64 checks.
 - `main` is protected; recent work uses short-lived feature/test branches and pull requests before integration.
 - There are currently no open repository issues and no published releases.
-- The first stable-handle tranche provides a positive 63-bit FFI-safe opaque `VaultHandle` and an internal bounded generation-checked registry. Handles are not pointers, raw values are redacted from `Debug`, lock/lock-all immediately drop Rust-owned values, stale handles cannot revive after slot reuse, generation exhaustion retires a slot rather than wrapping, and capacity is explicit. The registry is intentionally not yet wired to KDBX-owned decrypted state or JNI.
+- The stable-handle foundation provides a positive 63-bit FFI-safe opaque `VaultHandle` and an internal bounded generation-checked registry. Handles are not pointers, raw values are redacted from `Debug`, lock/lock-all immediately drop Rust-owned values, stale handles cannot revive after slot reuse, generation exhaustion retires a slot rather than wrapping, and capacity is explicit. The registry is now wired to private Rust-owned KDBX `Database` sessions through `VaultCore`; it is intentionally not yet exposed through vault-lifecycle JNI operations.
 - There is not yet a production Android application module, production vault-read JNI API, write path, Autofill implementation or release artifact.
 
 Known engine constraints remain explicit: the pinned engine is currently used for read validation, not as an unconditional production/write commitment. KDBX feature/version coverage, owned secret buffers and unsupported combinations must be contained by Fortress-owned adapters, limits and validation gates before production use.
@@ -69,11 +69,15 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
   - [x] Establish the opaque handle/registry foundation without production KDBX or JNI integration: positive 63-bit non-pointer `VaultHandle`, checked raw decoding, one-based slot + generation encoding, explicit registry capacity, stale-handle rejection after slot reuse, idempotent per-handle/global lock, immediate Rust-value drop, non-wrapping generation retirement and redacted `Debug` output.
   - [x] Integrate the registry into a concrete Rust vault owner/lifecycle API; `VaultCore` now retains bounded-open `Database` instances only in private Rust `VaultSession` owners behind generation-checked handles, and `lock_vault`/`lock_all` immediately drop those owners while invalidating stale generations.
   - [ ] Add the bounded Kotlin/JNI wrapper over `VaultCore` without exposing decrypted `Database` values, raw pointers, registry internals, or immutable JVM secret strings.
+    - [x] Establish a dedicated `rust/android-jni` non-secret Capability/ABI smoke boundary. The adapter pins `jni = 0.22.4` with default features disabled, has deterministic packed status/value responses, contains Rust panics before the boundary, limits the smoke crate to the `jni` and local `vault-core` dependencies, and keeps `vault-core` JNI/Android-free.
+    - [x] Prove the Rust/JNI smoke library mechanically: host `cdylib` build, exact exported JNI symbol check, full fmt/clippy/test matrix, Android ARM64/x86_64 cross-target checks, KeePassXC reopen and KeePass/KPScript interoperability all pass.
+    - [ ] Add an executable Android/Kotlin smoke caller that loads the native library and validates capability/status decoding on Android. ADR 0002 remains unaccepted until this runtime boundary is proven.
+    - [ ] Only after the Android/Kotlin smoke caller passes, extend the adapter to bounded `open`/`lock`/`is-valid` lifecycle operations using byte-oriented credentials, opaque handles and sanitized stable errors.
 - [x] Add explicit memory hygiene for composite keys and sensitive secret buffers, including zeroization wrappers where upstream types retain owned secret material.
   - [x] Fortress-owned password/key-file inputs use zeroizing byte owners; `VaultCredentials` is non-`Clone`, redacted in `Debug`, and bounded-open borrows the password only at the narrow engine conversion point.
   - [x] Pin the hardened Fortress `keepass-rs` fork after its full CI matrix proved zeroizing ownership for key-element vectors, transformed/master/HMAC/per-block HMAC material, decrypted/decompressed plaintext scratch, protected-stream/inner-stream key bytes, unprotected stored values and Salsa20/ChaCha20 state.
   - [x] Document the residual short-lived `hybrid_array::Array` hash/KDF boundary and explicitly avoid any total-process-memory-erasure claim.
-- [ ] Extend the JNI contract beyond the smoke boundary only after engine selection, parser limits and error semantics are proven.
+- [ ] Extend the JNI contract beyond the proven non-secret smoke boundary only after the executable Android/Kotlin caller passes; engine selection, parser limits, owner lifecycle and error semantics are already proven prerequisites.
 - [x] Build/upload compiled Rust `.so` artifacts for the required Android targets in CI.
 - [x] Validate native symbol/export linkage in CI.
 - [x] Keep the Rust dependency policy auditable with locked/pinned dependencies and automated review/update tooling.
@@ -232,9 +236,9 @@ There is no known external organizational blocker and no open GitHub issue curre
 
 ## Next prioritized work
 
-1. [ ] Add the Kotlin/JNI wrapper over the proven `VaultCore` owner, beginning with bounded open/lock/is-valid operations, byte-oriented credentials, opaque positive handles and stable sanitized errors.
-2. [ ] Prove JNI panic containment, invalid/stale-handle behavior and Android lifecycle lock paths without allowing decrypted database ownership to escape Rust.
-3. [ ] Expand lifecycle/concurrency/property/fuzz coverage before adding metadata/secret retrieval or mutation APIs.
+1. [ ] Add the executable Android/Kotlin smoke caller for `NativeBridge.nativeCapabilityProbe`, load the produced native library on Android, and prove capability/status decoding without secrets or vault ownership crossing JNI.
+2. [ ] After that runtime smoke gate passes, extend the JNI adapter over the proven `VaultCore` owner with bounded open/lock/is-valid operations, byte-oriented credentials, opaque positive handles and stable sanitized errors.
+3. [ ] Prove JNI panic containment, invalid/stale-handle behavior and Android lifecycle lock paths without allowing decrypted database ownership to escape Rust; then expand lifecycle/concurrency/property/fuzz coverage before metadata/secret retrieval or mutation APIs.
 
 ## Completion status
 
