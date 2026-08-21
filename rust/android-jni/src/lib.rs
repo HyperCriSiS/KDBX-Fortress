@@ -86,6 +86,7 @@ where
 /// No JNI object is dereferenced and no JNI call is made in this smoke boundary.
 /// The environment/class parameters are present only because the JVM supplies
 /// them for a static native method.
+#[allow(unsafe_code)]
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe<
     'local,

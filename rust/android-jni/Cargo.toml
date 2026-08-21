@@ -9,11 +9,11 @@ publish.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# JNI exports require the Rust 2024 `unsafe(no_mangle)` attribute. The adapter is
-# the only crate allowed to contain that narrow FFI surface; vault-core continues
-# to inherit the workspace-wide `unsafe_code = forbid` policy.
+# JNI exports require the Rust 2024 `unsafe(no_mangle)` attribute. Unsafe code is
+# denied crate-wide; the single export attribute receives a local lint exception.
+# vault-core continues to inherit the stricter workspace `unsafe_code = forbid`.
 [lints.rust]
-unsafe_code = "allow"
+unsafe_code = "deny"
 
 [lints.clippy]
 dbg_macro = "deny"

@@ -23,10 +23,13 @@ FORBIDDEN_SOURCE_FRAGMENTS = (
     "open_vault",
     "lock_vault",
     "lock_all",
+    "unsafe fn",
+    "unsafe extern",
+    "unsafe {",
 )
-EXPECTED_EXPORT = (
-    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe"
-)
+EXPECTED_EXPORT = "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe"
+EXPECTED_UNSAFE_ALLOW = "#[allow(unsafe_code)]"
+EXPECTED_UNSAFE_EXPORT = "#[unsafe(no_mangle)]"
 
 
 class PolicyError(RuntimeError):
@@ -84,13 +87,15 @@ def check(root: Path) -> None:
     if core.get("path") != "../vault-core":
         raise PolicyError("adapter vault-core dependency must stay local and relative")
 
-    if adapter.get("lints", {}).get("rust", {}).get("unsafe_code") != "allow":
-        raise PolicyError("adapter must explicitly scope unsafe allowance to its crate")
+    if adapter.get("lints", {}).get("rust", {}).get("unsafe_code") != "deny":
+        raise PolicyError("adapter must deny unsafe code crate-wide")
 
     source_files = sorted(adapter_src.rglob("*.rs"))
     source = "\n".join(path.read_text(encoding="utf-8") for path in source_files)
 
-    if source.count("#[unsafe(no_mangle)]") != 1:
+    if source.count(EXPECTED_UNSAFE_ALLOW) != 1:
+        raise PolicyError("smoke adapter must contain exactly one local unsafe lint exception")
+    if source.count(EXPECTED_UNSAFE_EXPORT) != 1:
         raise PolicyError("smoke adapter must contain exactly one unsafe export attribute")
     if source.count(EXPECTED_EXPORT) != 1:
         raise PolicyError("smoke adapter must expose exactly one approved JNI symbol")
@@ -134,6 +139,16 @@ def self_test(real_root: Path) -> None:
             encoding="utf-8",
         )
         expect_failure(temp_root, "forbidden Android/JNI smoke source fragment: std::net")
+
+    with tempfile.TemporaryDirectory(prefix="android-jni-policy-") as temp:
+        temp_root = Path(temp) / "project"
+        shutil.copytree(real_root, temp_root)
+        lib = temp_root / "rust" / "android-jni" / "src" / "lib.rs"
+        lib.write_text(
+            lib.read_text(encoding="utf-8") + "\nunsafe fn forbidden_unsafe() {}\n",
+            encoding="utf-8",
+        )
+        expect_failure(temp_root, "forbidden Android/JNI smoke source fragment: unsafe fn")
 
     with tempfile.TemporaryDirectory(prefix="android-jni-policy-") as temp:
         temp_root = Path(temp) / "project"
