@@ -50,7 +50,7 @@ impl CapabilityResponse {
     }
 
     const fn encode(self) -> jlong {
-        ((self.status as jlong) << 32) | jlong::from(self.value)
+        ((self.status as jlong) << 32) | (self.value as jlong)
     }
 }
 
