@@ -130,7 +130,7 @@ fn encode_entry(summary: &EntrySummary) -> Result<Vec<u8>, LifecycleStatus> {
         push_text(&mut bytes, tag)?;
     }
     bytes.push(u8::from(summary.has_password));
-    bytes.push(u8::from(summary.has_totp));
+    bytes.push(u8::from(summary.has_otp));
     bytes.extend_from_slice(&summary.attachment_count.to_le_bytes());
     Ok(finish(bytes))
 }
