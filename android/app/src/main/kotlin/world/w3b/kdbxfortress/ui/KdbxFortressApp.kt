@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,6 +35,11 @@ import world.w3b.kdbxfortress.ui.navigation.TopLevelDestination
 @Composable
 fun KdbxFortressApp(
     nativeReady: Boolean,
+    selectedDocumentName: String?,
+    selectedDocumentPersistent: Boolean,
+    onOpenVault: () -> Unit,
+    onCreateVault: () -> Unit,
+    createVaultEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -82,7 +89,14 @@ fun KdbxFortressApp(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(TopLevelDestination.Vault.route) {
-                VaultScreen(nativeReady = nativeReady)
+                VaultScreen(
+                    nativeReady = nativeReady,
+                    selectedDocumentName = selectedDocumentName,
+                    selectedDocumentPersistent = selectedDocumentPersistent,
+                    onOpenVault = onOpenVault,
+                    onCreateVault = onCreateVault,
+                    createVaultEnabled = createVaultEnabled,
+                )
             }
             composable(TopLevelDestination.Settings.route) {
                 SettingsScreen()
@@ -98,7 +112,14 @@ private fun TopLevelDestination.label(): String = when (this) {
 }
 
 @Composable
-private fun VaultScreen(nativeReady: Boolean) {
+private fun VaultScreen(
+    nativeReady: Boolean,
+    selectedDocumentName: String?,
+    selectedDocumentPersistent: Boolean,
+    onOpenVault: () -> Unit,
+    onCreateVault: () -> Unit,
+    createVaultEnabled: Boolean,
+) {
     ScreenBody {
         Text(
             text = stringResource(R.string.vault_empty_title),
@@ -108,6 +129,48 @@ private fun VaultScreen(nativeReady: Boolean) {
             text = stringResource(R.string.vault_empty_body),
             style = MaterialTheme.typography.bodyLarge,
         )
+
+        Button(onClick = onOpenVault) {
+            Text(text = stringResource(R.string.vault_open_action))
+        }
+
+        OutlinedButton(
+            onClick = onCreateVault,
+            enabled = createVaultEnabled,
+        ) {
+            Text(text = stringResource(R.string.vault_create_action))
+        }
+
+        if (!createVaultEnabled) {
+            Text(
+                text = stringResource(R.string.vault_create_pending),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        selectedDocumentName?.let { name ->
+            Text(
+                text = stringResource(R.string.vault_selected_document, name),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(
+                    if (selectedDocumentPersistent) {
+                        R.string.vault_document_access_persistent
+                    } else {
+                        R.string.vault_document_access_session
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (selectedDocumentPersistent) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+            )
+        }
+
         Text(
             text = stringResource(
                 if (nativeReady) R.string.native_core_ready else R.string.native_core_unavailable,

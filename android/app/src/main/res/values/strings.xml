@@ -4,7 +4,13 @@
     <string name="destination_vault">Vault</string>
     <string name="destination_settings">Settings</string>
     <string name="vault_empty_title">No vault open</string>
-    <string name="vault_empty_body">Open a KDBX vault to browse entries securely.</string>
+    <string name="vault_empty_body">Choose a KDBX document through Android\'s system file picker. Fortress does not request broad storage access.</string>
+    <string name="vault_open_action">Open vault</string>
+    <string name="vault_create_action">Create vault</string>
+    <string name="vault_create_pending">Vault creation stays disabled until the verified Rust KDBX write path can initialize a valid KDBX 4.1 document.</string>
+    <string name="vault_selected_document">Selected: %1$s</string>
+    <string name="vault_document_access_persistent">Document access retained by Android SAF</string>
+    <string name="vault_document_access_session">Document access is limited to the current grant</string>
     <string name="native_core_ready">Secure vault core ready</string>
     <string name="native_core_unavailable">Secure vault core unavailable</string>
     <string name="settings_title">Settings</string>
