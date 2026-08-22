@@ -15,6 +15,11 @@ adb install -r "$apk"
 adb shell pm clear "$package" >/dev/null
 adb shell am start -W -n "$component"
 
+# Trigger a real Android foreground -> background lifecycle transition. The
+# activity writes PASS only from onStop() after Rust lock-all invalidates every
+# live probe handle.
+adb shell input keyevent KEYCODE_HOME
+
 result=""
 for attempt in $(seq 1 20); do
   if result=$(adb shell run-as "$package" cat "$result_file" 2>/dev/null | tr -d '\r\n'); then

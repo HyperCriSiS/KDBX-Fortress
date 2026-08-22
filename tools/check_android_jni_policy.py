@@ -26,6 +26,7 @@ EXPECTED_EXPORTS = (
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe",
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeOpenVault",
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockVault",
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockAllVaults",
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsVaultHandleValid",
 )
 JNI_EXPORT_PREFIX = "Java_world_w3b_kdbxfortress_bridge_NativeBridge_native"
