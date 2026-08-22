@@ -160,8 +160,10 @@ The Rust core may expose entry matching/search primitives over normalized metada
    - [x] Prove malformed/stale handles remain sanitized and cannot affect a newly reused registry slot/generation.
    - [x] Prove an actual Android foreground → background transition reaches `Activity.onStop()` and invalidates multiple live Rust-owned vaults through the bounded `lock-all` export.
    - [x] Add deterministic lifecycle/concurrency/property/fuzz coverage: 20,000 model-based registry transitions, 100,000 raw-handle fuzz inputs and eight concurrent owner workers over real KDBX sessions pass the full Foundation gate.
-6. [ ] Begin Phase 1 production Android module/native-library wiring, then add metadata listing and explicit single-secret retrieval through a deliberately bounded read-only JNI surface.
-7. [ ] Only then add mutation and production serialization/round-trip exposure.
+6. [x] Complete the Phase 1 Android foundation before widening JNI: production/shared/smoke modules, Material 3/Compose navigation shell, scoped SAF document selection and built-APK no-broad-storage-permission gate.
+7. [ ] Add the first bounded **metadata-only** read tranche through a deliberately versioned JNI surface: vault summary plus group/entry summaries, with explicit result/size ceilings and no secret values.
+8. [ ] After metadata listing is proven, add explicit single-secret retrieval as a separate audited tranche with short-lived byte ownership and clear/release semantics.
+9. [ ] Only then add mutation and production serialization/round-trip exposure.
 
 ### Current handle-registry implementation evidence
 
@@ -219,4 +221,4 @@ The current ingress and ownership contract is deliberately narrow:
 
 The Android emulator gate packages a deterministic KDBX fixture and now proves the lifecycle boundary in two stages. The baseline gate proves `open → is-valid → lock → stale`. The ABI-v3 hardening gate first verifies malformed-handle behavior, then keeps two real KDBX vault handles simultaneously live, writes an app-private `READY` marker only after both are confirmed valid, and has the external harness send the emulator Home key. `PASS` is written exclusively from `Activity.onStop()` after Rust `lock-all` invalidates both handles. The stale-generation/slot-reuse case remains a Rust-level deterministic test so the Android smoke does not duplicate expensive KDF work. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
 
-The dedicated panic/poison/stale-handle/Android-lifecycle proof and deterministic lifecycle/concurrency/property/fuzz stress gate are complete. Phase 1 production Android module/native-library wiring is the next gate before any deliberately bounded metadata or secret-retrieval API is introduced.
+The dedicated panic/poison/stale-handle/Android-lifecycle proof and deterministic lifecycle/concurrency/property/fuzz stress gate are complete. The Phase 1 Android module/native-library, Compose/navigation and scoped-SAF foundation is also complete without widening the five-export ABI-v3 lifecycle surface. The next gate is a deliberately bounded metadata-only read API; explicit secret retrieval remains a later, separate audited tranche.
