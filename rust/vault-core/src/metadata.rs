@@ -6,7 +6,7 @@
 
 use keepass::{
     Database,
-    db::{fields, EntryRef, GroupRef, Value},
+    db::{EntryRef, GroupRef, Value, fields},
 };
 
 /// Fixed byte width of a KeePass object UUID exposed by the metadata API.
