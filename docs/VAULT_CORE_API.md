@@ -30,7 +30,7 @@ Bridge callers must treat this value as opaque process-local capability metadata
 
 The registry is explicitly bounded. Lock immediately drops the Rust-owned session value and advances its generation; repeated lock is a no-op. Reusing a vacant slot therefore produces a different handle, so a copied stale handle cannot revive. Generation exhaustion permanently retires the slot instead of wrapping. `lock_all` is likewise idempotent and drops every live Rust-owned value. Handle `Debug` output is redacted.
 
-The registry remains internal to Rust. The concrete `VaultCore` owner and Android/JNI ABI v2 expose only opaque handle values plus bounded lifecycle operations; slot/generation structure and decrypted database values are never exported.
+The registry remains internal to Rust. The concrete `VaultCore` owner and Android/JNI ABI v3 expose only opaque handle values plus bounded lifecycle operations; slot/generation structure and decrypted database values are never exported.
 
 ### `EntryId` / `GroupId`
 
@@ -58,12 +58,13 @@ Before the current bounded `open_vault` path invokes the selected KDBX engine, F
 
 ## Lifecycle API
 
-Conceptual core API; the current Android/JNI ABI v2 intentionally exposes only `open`, `lock` and `is-valid` and does not yet return `VaultSummary` or expose create/read/mutation operations.
+Conceptual core API; the current Android/JNI ABI v3 intentionally exposes only `open`, `lock`, `lock-all` and `is-valid` and does not yet return `VaultSummary` or expose create/read/mutation operations.
 
 ```text
 open_vault(kdbx_bytes, credentials, limits) -> VaultHandle + VaultSummary
 create_vault(options, credentials) -> VaultHandle + VaultSummary
 lock_vault(handle) -> void
+lock_all_vaults() -> void
 is_handle_valid(handle) -> bool
 ```
 
@@ -153,7 +154,12 @@ The Rust core may expose entry matching/search primitives over normalized metada
 2. [x] Complete the secret-buffer zeroization/memory-hygiene gate before decrypted vault state is retained behind handles.
 3. [x] Integrate the registry into a concrete Rust vault owner and add bounded read-only `open_vault` against deterministic KDBX fixtures.
 4. [x] Add the executable Android/Kotlin caller and the bounded JNI lifecycle wrapper (`open`/`lock`/`is-valid`) with byte-oriented credentials, opaque handles and stable sanitized errors.
-5. [ ] Prove JNI panic containment, invalid/stale-handle behavior and Android lifecycle lock paths, then add lifecycle/concurrency/property/fuzz coverage around the concrete owner/bridge boundary.
+5. [ ] Complete the JNI/lifecycle hardening tranche around the concrete owner/bridge boundary.
+   - [x] Contain owner-operation panics while the Rust owner mutex is held and fail closed by locking every live vault before returning the frozen panic status.
+   - [x] Recover from an already-poisoned owner by locking all retained vaults before clearing poison and resuming service.
+   - [x] Prove malformed/stale handles remain sanitized and cannot affect a newly reused registry slot/generation.
+   - [x] Prove an actual Android foreground → background transition reaches `Activity.onStop()` and invalidates multiple live Rust-owned vaults through the bounded `lock-all` export.
+   - [ ] Add deterministic lifecycle/concurrency/property/fuzz coverage before any broader read API.
 6. [ ] Add metadata listing and explicit single-secret retrieval only after the lifecycle-hardening gates pass.
 7. [ ] Only then add mutation and production serialization/round-trip exposure.
 
@@ -171,7 +177,7 @@ The first tranche is deliberately smaller than the full lifecycle API. It curren
 - destruction of remaining live values when the registry itself is dropped;
 - redacted handle `Debug` output.
 
-The registry foundation by itself does **not** establish concurrency semantics or Android lifecycle integration; those remain separate hardening gates even though KDBX ownership, secret-memory work and bounded JNI lifecycle exposure are now implemented in later tranches.
+The registry foundation by itself does **not** establish concurrency semantics. Android lifecycle integration is now proven in the later JNI hardening tranche, while deterministic concurrency/property/fuzz coverage remains the next gate.
 
 
 ## Concrete Rust vault owner — implemented Phase 0 tranche
@@ -192,12 +198,12 @@ Lifecycle behavior proven by unit tests and the full Foundation gate:
 
 `VaultCoreError` exposes only typed Fortress errors (`Open`, `CapacityExceeded`, `InvalidHandle`) and carries no decrypted content or registry details. `VaultSession` is intentionally private and has no public `Debug` surface.
 
-This core-owner tranche is now consumed by the bounded Android/JNI lifecycle adapter described below. Android lifecycle integration, metadata/secret retrieval, mutation operations, raw database references, pointers and concurrency guarantees remain outside this tranche.
+This core-owner tranche is now consumed by the bounded Android/JNI lifecycle adapter described below. Android lifecycle-triggered global locking is proven by the adapter hardening gate; metadata/secret retrieval, mutation operations, raw database references, pointers and broader concurrency guarantees remain outside this tranche.
 
 
 ## Android/JNI lifecycle adapter — implemented Phase 0 tranche
 
-Adapter ABI 2 exposes exactly four `NativeBridge` methods: the non-secret capability probe plus bounded `open`, `lock` and `is-valid`. `rust/vault-core` remains JNI/Android-free; the separate `rust/android-jni` crate owns the process-local bridge `VaultCore`.
+Adapter ABI 3 exposes exactly five `NativeBridge` methods: the non-secret capability probe plus bounded `open`, `lock`, `lock-all` and `is-valid`. `rust/vault-core` remains JNI/Android-free; the separate `rust/android-jni` crate owns the process-local bridge `VaultCore`.
 
 The current ingress and ownership contract is deliberately narrow:
 
@@ -206,9 +212,11 @@ The current ingress and ownership contract is deliberately narrow:
 - successful opens return only positive opaque process-local handles; open/lock failures use frozen negative adapter status codes, while `is-valid` returns `1`/`0` except for an internal adapter failure;
 - KDBX engine diagnostics are collapsed into sanitized categories rather than copied into Kotlin;
 - Rust copies of credential byte vectors are moved immediately into `VaultCredentials` zeroizing owners;
-- a poisoned bridge-owner mutex fails closed by locking all retained vaults before the adapter resumes service;
-- the JNI source-policy and binary-symbol gates allow exactly the four approved exports and continue to forbid network dependencies and additional unsafe code paths.
+- owner operations are panic-contained while the Rust mutex is still held; a contained panic immediately executes `lock_all`, so decrypted sessions do not survive the failing operation and no panic payload crosses JNI;
+- an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before poison is cleared and service resumes with the stable internal-error category;
+- malformed handles remain sanitized, and stale handles cannot revive or affect a newly reused registry slot/generation;
+- the JNI source-policy and binary-symbol gates allow exactly the five approved exports and continue to forbid network dependencies and additional unsafe code paths.
 
-The Android emulator gate packages a deterministic KDBX fixture and proves `open → is-valid → lock → stale`, including idempotent locking of a structurally valid stale handle and rejection of a malformed zero handle. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
+The Android emulator gate packages a deterministic KDBX fixture and now proves the lifecycle boundary in two stages. The baseline gate proves `open → is-valid → lock → stale`. The ABI-v3 hardening gate first verifies malformed-handle behavior, then keeps two real KDBX vault handles simultaneously live, writes an app-private `READY` marker only after both are confirmed valid, and has the external harness send the emulator Home key. `PASS` is written exclusively from `Activity.onStop()` after Rust `lock-all` invalidates both handles. The stale-generation/slot-reuse case remains a Rust-level deterministic test so the Android smoke does not duplicate expensive KDF work. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
 
-This does **not** yet prove all lifecycle/security behavior required for a production bridge. The next gate is explicit JNI panic containment plus invalid/stale-handle and Android lifecycle-triggered lock-path testing, followed by concurrency/property/fuzz coverage. Metadata/secret retrieval remains blocked until that hardening work passes.
+The dedicated panic/poison/stale-handle/Android-lifecycle proof is complete. The remaining blocker before metadata or secret retrieval is deterministic lifecycle/concurrency/property/fuzz coverage around the concrete owner/bridge boundary.
