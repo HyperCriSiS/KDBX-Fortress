@@ -248,7 +248,7 @@ fn is_handle_valid_on_core(core: &VaultCore, raw: jlong) -> jint {
         Err(_) => return 0,
     };
 
-    if core.is_handle_valid(handle) { 1 } else { 0 }
+    jint::from(core.is_handle_valid(handle))
 }
 
 fn is_handle_valid_response(raw: jlong) -> jint {
@@ -265,7 +265,7 @@ fn lock_all_vaults_response() -> jint {
     }
 }
 
-/// Non-secret JNI capability probe.
+/// Returns a packed status/value capability response.
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCapabilityProbe<
@@ -278,10 +278,13 @@ pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeCap
     guarded_capability_response(|| capability_response(request))
 }
 
-/// Opens one bounded KDBX byte buffer and retains decrypted state only in Rust.
+/// Opens one bounded KDBX input with optional byte-oriented password/key-file
+/// credentials and returns either a positive opaque handle or a stable negative
+/// lifecycle code.
 ///
-/// `password` and `keyfile` are nullable Java `byte[]` references. Their Rust
-/// copies are moved directly into zeroizing `VaultCredentials` allocations.
+/// Nullable credential arrays preserve absent-vs-explicit-empty semantics. JVM
+/// arrays are copied only after length checks; password/key-file Rust copies are
+/// moved directly into zeroizing `VaultCredentials` allocations.
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeOpenVault<'local>(
@@ -375,7 +378,8 @@ mod tests {
     };
     use std::{
         panic::{AssertUnwindSafe, catch_unwind},
-        sync::Mutex,
+        sync::{Arc, Barrier, Mutex},
+        thread,
     };
     use vault_core::{
         KdbxOpenError, KdbxPreflightError, VaultCore, VaultCoreError, VaultCredentials,
@@ -504,6 +508,102 @@ mod tests {
         let live = with_core_mutex(&owner, |core| is_handle_valid_on_core(core, handle))
             .expect("cleared owner must be usable after fail-closed recovery");
         assert_eq!(live, 0);
+    }
+
+    #[test]
+    fn concurrent_owner_lifecycle_operations_preserve_stale_handle_isolation() {
+        const WORKERS: usize = 8;
+        const ITERATIONS: usize = 1_500;
+
+        let owner = Arc::new(Mutex::new(VaultCore::new(2)));
+        let first = with_core_mutex(&owner, |core| {
+            open_vault_on_core(core, FIXTURE, &credentials())
+        })
+        .expect("healthy owner must open first fixture");
+        let second = with_core_mutex(&owner, |core| {
+            open_vault_on_core(core, FIXTURE, &credentials())
+        })
+        .expect("healthy owner must open second fixture");
+        assert!(first > 0);
+        assert!(second > 0);
+        assert_ne!(first, second);
+
+        let barrier = Arc::new(Barrier::new(WORKERS));
+        let mut workers = Vec::with_capacity(WORKERS);
+
+        for worker in 0..WORKERS {
+            let owner = Arc::clone(&owner);
+            let barrier = Arc::clone(&barrier);
+            workers.push(thread::spawn(move || {
+                barrier.wait();
+
+                for iteration in 0..ITERATIONS {
+                    let handle = if (worker + iteration) % 2 == 0 {
+                        first
+                    } else {
+                        second
+                    };
+
+                    let result = match worker % 4 {
+                        0 => with_core_mutex(&owner, |core| {
+                            is_handle_valid_on_core(core, handle)
+                        })
+                        .map(|_| ()),
+                        1 => with_core_mutex(&owner, |core| {
+                            if iteration == ITERATIONS / 2 {
+                                let _ = lock_vault_on_core(core, handle);
+                            } else {
+                                let _ = is_handle_valid_on_core(core, handle);
+                            }
+                        }),
+                        2 => with_core_mutex(&owner, |core| {
+                            if iteration == (ITERATIONS * 3) / 4 {
+                                core.lock_all();
+                            } else {
+                                let _ = is_handle_valid_on_core(core, handle);
+                            }
+                        }),
+                        _ => with_core_mutex(&owner, |core| {
+                            let _ = lock_vault_on_core(core, handle);
+                        }),
+                    };
+
+                    assert_eq!(result, Ok(()));
+                    if iteration % 31 == 0 {
+                        thread::yield_now();
+                    }
+                }
+            }));
+        }
+
+        for worker in workers {
+            worker.join().expect("owner stress worker must not panic");
+        }
+
+        let first_live =
+            with_core_mutex(&owner, |core| is_handle_valid_on_core(core, first)).expect("owner");
+        let second_live =
+            with_core_mutex(&owner, |core| is_handle_valid_on_core(core, second)).expect("owner");
+        assert_eq!(first_live, 0);
+        assert_eq!(second_live, 0);
+        assert!(!owner.is_poisoned());
+
+        let reopened = with_core_mutex(&owner, |core| {
+            open_vault_on_core(core, FIXTURE, &credentials())
+        })
+        .expect("owner must remain usable after concurrent lifecycle stress");
+        assert!(reopened > 0);
+        assert_ne!(reopened, first);
+        assert_ne!(reopened, second);
+
+        with_core_mutex(&owner, |core| {
+            let _ = lock_vault_on_core(core, first);
+            let _ = lock_vault_on_core(core, second);
+            assert_eq!(is_handle_valid_on_core(core, reopened), 1);
+            core.lock_all();
+            assert_eq!(is_handle_valid_on_core(core, reopened), 0);
+        })
+        .expect("stale handles must not disturb a reopened generation");
     }
 
     #[test]
