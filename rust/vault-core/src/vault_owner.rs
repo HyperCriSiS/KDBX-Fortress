@@ -304,15 +304,19 @@ mod tests {
             .read_vault_summary(handle, MetadataReadLimits::default())
             .expect("vault summary must be available");
 
-        let mut limits = MetadataReadLimits::default();
-        limits.max_text_bytes = 4;
+        let limits = MetadataReadLimits {
+            max_text_bytes: 4,
+            ..MetadataReadLimits::default()
+        };
         assert_eq!(
             core.read_group_summary(handle, vault.root_group_id, limits),
             Err(MetadataReadError::LimitExceeded)
         );
 
-        let mut limits = MetadataReadLimits::default();
-        limits.max_child_entries = 0;
+        let limits = MetadataReadLimits {
+            max_child_entries: 0,
+            ..MetadataReadLimits::default()
+        };
         assert_eq!(
             core.read_group_summary(handle, vault.root_group_id, limits),
             Err(MetadataReadError::LimitExceeded)
