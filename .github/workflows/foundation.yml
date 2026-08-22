@@ -123,31 +123,55 @@ jobs:
           $keepassZip = Join-Path $toolsDir 'KeePass-2.61.1.zip'
           $kpscriptZip = Join-Path $toolsDir 'KPScript-2.61.1.zip'
 
-          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $keepassZip 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download?use_mirror=phoenixnap'
-          if ($LASTEXITCODE -ne 0) { throw "KeePass download failed (curl exit $LASTEXITCODE)" }
-          & curl.exe --fail --location --retry 3 --retry-delay 2 --output $kpscriptZip 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip'
-          if ($LASTEXITCODE -ne 0) { throw "KPScript download failed (curl exit $LASTEXITCODE)" }
-
-          function Assert-ReferencePackage {
+          function Get-VerifiedReferencePackage {
             param(
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][string]$Url,
               [Parameter(Mandatory = $true)][string]$Path,
               [Parameter(Mandatory = $true)][long]$ExpectedSize,
-              [Parameter(Mandatory = $true)][string]$ExpectedSha256
+              [Parameter(Mandatory = $true)][string]$ExpectedSha256,
+              [int]$Attempts = 4
             )
 
-            $item = Get-Item -LiteralPath $Path
-            if ($item.Length -ne $ExpectedSize) {
-              throw "Unexpected package size for $($item.Name): $($item.Length) != $ExpectedSize"
+            for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+              Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+              & curl.exe --fail --location --retry 3 --retry-all-errors --retry-delay 2 --header 'Cache-Control: no-cache' --output $Path $Url
+              $curlExit = $LASTEXITCODE
+
+              if ($curlExit -eq 0 -and (Test-Path -LiteralPath $Path -PathType Leaf)) {
+                $item = Get-Item -LiteralPath $Path
+                $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+                if ($item.Length -eq $ExpectedSize -and $actualSha256 -eq $ExpectedSha256) {
+                  Write-Host "$Name verified on attempt $attempt."
+                  return
+                }
+
+                Write-Warning "$Name download attempt $attempt rejected by pin: size=$($item.Length), sha256=$actualSha256"
+              } else {
+                Write-Warning "$Name download attempt $attempt failed (curl exit $curlExit)."
+              }
+
+              if ($attempt -lt $Attempts) {
+                Start-Sleep -Seconds (2 * $attempt)
+              }
             }
 
-            $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
-            if ($actualSha256 -ne $ExpectedSha256) {
-              throw "SHA-256 mismatch for $($item.Name): $actualSha256"
-            }
+            throw "$Name failed strict size/SHA-256 verification after $Attempts attempts"
           }
 
-          Assert-ReferencePackage -Path $keepassZip -ExpectedSize 2898806 -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
-          Assert-ReferencePackage -Path $kpscriptZip -ExpectedSize 24707 -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
+          Get-VerifiedReferencePackage `
+            -Name 'KeePass 2.61.1' `
+            -Url 'https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download?use_mirror=phoenixnap' `
+            -Path $keepassZip `
+            -ExpectedSize 2898806 `
+            -ExpectedSha256 '3952354DB9B117E906F7CD4F9F5591065B95186472370DA47F46F3E246FEA864'
+
+          Get-VerifiedReferencePackage `
+            -Name 'KPScript 2.61.1' `
+            -Url 'https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip' `
+            -Path $kpscriptZip `
+            -ExpectedSize 24707 `
+            -ExpectedSha256 '06C9D95332FE7B2730E4E7FD0ABA846C5FA9A1B0CD3119DEFEA9875727A3BFFB'
 
           $keepassDir = Join-Path $toolsDir 'keepass'
           $kpscriptDir = Join-Path $toolsDir 'kpscript'
