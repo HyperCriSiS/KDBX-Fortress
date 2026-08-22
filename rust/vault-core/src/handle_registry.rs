@@ -380,6 +380,129 @@ mod tests {
     }
 
     #[test]
+    fn deterministic_model_sequences_preserve_handle_invariants() {
+        use std::collections::HashSet;
+
+        const CAPACITY: usize = 4;
+        const STEPS: usize = 20_000;
+
+        let mut registry = VaultHandleRegistry::new(CAPACITY as u32);
+        let mut live: Vec<(VaultHandle, u64)> = Vec::new();
+        let mut stale: Vec<VaultHandle> = Vec::new();
+        let mut seen = HashSet::new();
+        let mut next_value = 1_u64;
+        let mut state = 0x4d59_5df4_d0f3_3173_u64;
+
+        fn next(state: &mut u64) -> u64 {
+            *state ^= *state << 13;
+            *state ^= *state >> 7;
+            *state ^= *state << 17;
+            *state
+        }
+
+        for step in 0..STEPS {
+            let selector = next(&mut state);
+
+            match selector % 6 {
+                0 => {
+                    if live.len() < CAPACITY {
+                        let value = next_value;
+                        next_value = next_value.wrapping_add(1);
+                        let handle = registry
+                            .insert(value)
+                            .expect("model insert within capacity");
+                        assert!(seen.insert(handle), "a raw handle must never be reissued");
+                        live.push((handle, value));
+                    } else {
+                        assert_eq!(
+                            registry.insert(next_value),
+                            Err(VaultHandleError::CapacityExceeded)
+                        );
+                    }
+                }
+                1 if !live.is_empty() => {
+                    let index = (next(&mut state) as usize) % live.len();
+                    let (handle, _) = live.swap_remove(index);
+                    registry.lock(handle);
+                    stale.push(handle);
+                }
+                2 if !stale.is_empty() => {
+                    let handle = stale[(next(&mut state) as usize) % stale.len()];
+                    registry.lock(handle);
+                    assert_eq!(registry.get(handle), Err(VaultHandleError::InvalidHandle));
+                }
+                3 => {
+                    for (handle, _) in live.drain(..) {
+                        stale.push(handle);
+                    }
+                    registry.lock_all();
+                }
+                4 if !live.is_empty() => {
+                    let index = (next(&mut state) as usize) % live.len();
+                    let (handle, expected) = live[index];
+                    let value = registry.get_mut(handle).expect("model live handle");
+                    *value = value.wrapping_add(1);
+                    live[index].1 = expected.wrapping_add(1);
+                }
+                _ => {}
+            }
+
+            assert!(live.len() <= CAPACITY);
+            for (handle, expected) in &live {
+                assert!(registry.is_valid(*handle));
+                assert_eq!(registry.get(*handle), Ok(expected));
+            }
+
+            if !stale.is_empty() {
+                let handle = stale[(next(&mut state) as usize) % stale.len()];
+                assert!(!registry.is_valid(handle));
+                assert_eq!(registry.get(handle), Err(VaultHandleError::InvalidHandle));
+            }
+
+            if step % 257 == 0 {
+                for handle in &stale {
+                    assert!(!registry.is_valid(*handle));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn deterministic_raw_handle_fuzz_never_accepts_reserved_or_negative_encodings() {
+        let registry = VaultHandleRegistry::<u8>::new(4);
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+
+        fn next(state: &mut u64) -> u64 {
+            *state ^= *state << 13;
+            *state ^= *state >> 7;
+            *state ^= *state << 17;
+            *state
+        }
+
+        for _ in 0..100_000 {
+            let raw = next(&mut state);
+            match VaultHandle::from_raw(raw) {
+                Ok(handle) => {
+                    assert_eq!(handle.as_raw(), raw);
+                    assert!(raw <= i64::MAX as u64);
+                    assert_eq!(registry.get(handle), Err(VaultHandleError::InvalidHandle));
+                }
+                Err(VaultHandleError::InvalidHandle) => {}
+                Err(VaultHandleError::CapacityExceeded) => {
+                    panic!("raw handle decoding must never report capacity")
+                }
+            }
+        }
+
+        for raw in [0, 1, 1_u64 << 32, u64::MAX, i64::MIN as u64] {
+            assert_eq!(
+                VaultHandle::from_raw(raw),
+                Err(VaultHandleError::InvalidHandle)
+            );
+        }
+    }
+
+    #[test]
     fn generation_exhaustion_retires_the_slot_instead_of_wrapping() {
         let mut registry = VaultHandleRegistry::new(1);
         registry.slots.push(Slot {

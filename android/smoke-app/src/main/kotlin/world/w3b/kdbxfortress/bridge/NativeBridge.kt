@@ -6,7 +6,7 @@ internal object NativeBridge {
     private const val STATUS_INVALID_HANDLE = -9
     private const val CORE_ABI_REQUEST = 1
     private const val ADAPTER_ABI_REQUEST = 2
-    private const val EXPECTED_ADAPTER_ABI = 2L
+    private const val EXPECTED_ADAPTER_ABI = 3L
 
     init {
         System.loadLibrary("kdbx_fortress_android_jni")
@@ -28,6 +28,9 @@ internal object NativeBridge {
     @JvmStatic
     private external fun nativeIsVaultHandleValid(handle: Long): Int
 
+    @JvmStatic
+    private external fun nativeLockAllVaults(): Int
+
     fun verifyRuntimeBoundary() {
         val core = decode(nativeCapabilityProbe(CORE_ABI_REQUEST))
         check(core.status == STATUS_OK)
@@ -42,18 +45,46 @@ internal object NativeBridge {
         check(unsupported.value == 0L)
     }
 
-    fun verifyVaultLifecycle(kdbx: ByteArray, password: ByteArray) {
+    fun verifyMalformedHandleBoundary() {
+        check(nativeIsVaultHandleValid(0L) == 0)
+        check(nativeIsVaultHandleValid(-1L) == 0)
+        check(nativeLockVault(0L) == STATUS_INVALID_HANDLE)
+        check(nativeLockVault(-1L) == STATUS_INVALID_HANDLE)
+    }
+
+    fun openLifecycleProbeVaults(kdbx: ByteArray, password: ByteArray): LongArray {
+        val handles = LongArray(2)
+        try {
+            handles[0] = openVault(kdbx, password)
+            handles[1] = openVault(kdbx, password)
+            handles.forEach { handle -> check(nativeIsVaultHandleValid(handle) == 1) }
+            return handles
+        } catch (error: Throwable) {
+            nativeLockAllVaults()
+            throw error
+        }
+    }
+
+    fun verifyLifecycleLockAll(handles: LongArray) {
+        check(handles.isNotEmpty())
+        check(nativeLockAllVaults() == 0)
+        handles.forEach { handle ->
+            check(handle > 0L)
+            check(nativeIsVaultHandleValid(handle) == 0)
+            // A stale but structurally valid handle remains an idempotent lock.
+            check(nativeLockVault(handle) == 0)
+        }
+        check(nativeLockAllVaults() == 0)
+    }
+
+    fun lockAllForFailureCleanup() {
+        check(nativeLockAllVaults() == 0)
+    }
+
+    private fun openVault(kdbx: ByteArray, password: ByteArray): Long {
         val handle = nativeOpenVault(kdbx, password, null)
         check(handle > 0L) { "nativeOpenVault failed with status $handle" }
-        check(nativeIsVaultHandleValid(handle) == 1)
-
-        check(nativeLockVault(handle) == 0)
-        check(nativeIsVaultHandleValid(handle) == 0)
-
-        // Lock stays idempotent for a structurally valid stale handle.
-        check(nativeLockVault(handle) == 0)
-        check(nativeIsVaultHandleValid(0L) == 0)
-        check(nativeLockVault(0L) == STATUS_INVALID_HANDLE)
+        return handle
     }
 
     private fun decode(encoded: Long): Response {
