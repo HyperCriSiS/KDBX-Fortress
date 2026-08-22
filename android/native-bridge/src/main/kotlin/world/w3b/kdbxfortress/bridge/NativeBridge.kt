@@ -159,16 +159,24 @@ object NativeBridge {
 
     fun verifyMetadataReadBoundary(handle: Long) {
         val vault = readVaultSummary(handle)
-        check(vault.groupCount == 1L)
+        check(vault.groupCount == 2L)
         check(vault.entryCount == 1L)
         check(vault.attachmentCount == 0L)
 
         val root = readGroupSummary(handle, vault.rootGroupId)
-        check(root.name == "Synthetic")
-        check(root.childGroupIds.isEmpty())
-        check(root.entryIds.size == 1)
+        check(root.id == vault.rootGroupId)
+        check(root.parentId == null)
+        check(root.childGroupIds.size == 1)
+        check(root.entryIds.isEmpty())
 
-        val entry = readEntrySummary(handle, root.entryIds.single())
+        val group = readGroupSummary(handle, root.childGroupIds.single())
+        check(group.parentId == root.id)
+        check(group.name == "Synthetic")
+        check(group.childGroupIds.isEmpty())
+        check(group.entryIds.size == 1)
+
+        val entry = readEntrySummary(handle, group.entryIds.single())
+        check(entry.parentGroupId == group.id)
         check(entry.title == "Example Login")
         check(entry.username == "fixture-user")
         check(entry.url == "https://example.test")

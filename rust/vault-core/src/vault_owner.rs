@@ -247,13 +247,22 @@ mod tests {
         let vault = core
             .read_vault_summary(handle, limits)
             .expect("vault summary must be available");
-        assert_eq!(vault.group_count, 1);
+        assert_eq!(vault.group_count, 2);
         assert_eq!(vault.entry_count, 1);
         assert_eq!(vault.attachment_count, 0);
 
-        let group = core
+        let root = core
             .read_group_summary(handle, vault.root_group_id, limits)
             .expect("root summary must be available");
+        assert_eq!(root.id, vault.root_group_id);
+        assert!(root.parent_id.is_none());
+        assert_eq!(root.child_group_ids.len(), 1);
+        assert!(root.entry_ids.is_empty());
+
+        let group = core
+            .read_group_summary(handle, root.child_group_ids[0], limits)
+            .expect("synthetic group summary must be available");
+        assert_eq!(group.parent_id, Some(root.id));
         assert_eq!(group.name, "Synthetic");
         assert!(group.child_group_ids.is_empty());
         assert_eq!(group.entry_ids.len(), 1);
@@ -261,6 +270,7 @@ mod tests {
         let entry = core
             .read_entry_summary(handle, group.entry_ids[0], limits)
             .expect("entry summary must be available");
+        assert_eq!(entry.parent_group_id, group.id);
         assert_eq!(entry.title.as_deref(), Some("Example Login"));
         assert_eq!(entry.username.as_deref(), Some("fixture-user"));
         assert_eq!(entry.url.as_deref(), Some("https://example.test"));
@@ -303,13 +313,17 @@ mod tests {
         let vault = core
             .read_vault_summary(handle, MetadataReadLimits::default())
             .expect("vault summary must be available");
+        let root = core
+            .read_group_summary(handle, vault.root_group_id, MetadataReadLimits::default())
+            .expect("root summary must be available");
+        let group_id = root.child_group_ids[0];
 
         let limits = MetadataReadLimits {
             max_text_bytes: 4,
             ..MetadataReadLimits::default()
         };
         assert_eq!(
-            core.read_group_summary(handle, vault.root_group_id, limits),
+            core.read_group_summary(handle, group_id, limits),
             Err(MetadataReadError::LimitExceeded)
         );
 
@@ -318,7 +332,7 @@ mod tests {
             ..MetadataReadLimits::default()
         };
         assert_eq!(
-            core.read_group_summary(handle, vault.root_group_id, limits),
+            core.read_group_summary(handle, group_id, limits),
             Err(MetadataReadError::LimitExceeded)
         );
         assert!(core.is_handle_valid(handle));

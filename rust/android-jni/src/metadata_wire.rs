@@ -200,6 +200,10 @@ mod tests {
         MetadataId::from_bytes(bytes[offset..offset + 16].try_into().expect("metadata id"))
     }
 
+    fn read_u32(bytes: &[u8], offset: usize) -> u32 {
+        u32::from_le_bytes(bytes[offset..offset + 4].try_into().expect("u32"))
+    }
+
     #[test]
     fn wire_returns_bounded_metadata_without_password_value() {
         let (core, handle) = open();
@@ -213,12 +217,35 @@ mod tests {
 
         let mut root_offset = 10;
         if vault[9] == 1 {
-            let name_len = u32::from_le_bytes(vault[10..14].try_into().expect("name length"));
+            let name_len = read_u32(&vault, 10);
             root_offset = 14 + usize::try_from(name_len).expect("name length fits usize");
         }
         let root_id = read_id(&vault, root_offset);
-        let group = read_metadata_response(&core, handle, REQUEST_GROUP_SUMMARY, Some(root_id));
+        assert_eq!(read_u32(&vault, root_offset + 16), 2);
+        assert_eq!(read_u32(&vault, root_offset + 20), 1);
+
+        let root = read_metadata_response(&core, handle, REQUEST_GROUP_SUMMARY, Some(root_id));
+        assert_ok_kind(&root, KIND_GROUP);
+        assert_eq!(read_id(&root, 9), root_id);
+        assert_eq!(root[25], 0, "root must not expose a parent id");
+        assert!(
+            !root
+                .windows(b"fixture-secret".len())
+                .any(|w| w == b"fixture-secret")
+        );
+
+        let root_name_len = usize::try_from(read_u32(&root, 26)).expect("root name length");
+        let child_group_count_offset = 30 + root_name_len;
+        assert_eq!(read_u32(&root, child_group_count_offset), 1);
+        let group_id = read_id(&root, child_group_count_offset + 4);
+        let root_entry_count_offset = child_group_count_offset + 4 + 16;
+        assert_eq!(read_u32(&root, root_entry_count_offset), 0);
+
+        let group = read_metadata_response(&core, handle, REQUEST_GROUP_SUMMARY, Some(group_id));
         assert_ok_kind(&group, KIND_GROUP);
+        assert_eq!(read_id(&group, 9), group_id);
+        assert_eq!(group[25], 1, "synthetic group must expose its root parent");
+        assert_eq!(read_id(&group, 26), root_id);
         assert!(group.windows(b"Synthetic".len()).any(|w| w == b"Synthetic"));
         assert!(
             !group
@@ -226,11 +253,17 @@ mod tests {
                 .any(|w| w == b"fixture-secret")
         );
 
-        // Root group: id(16), parent marker(1), name length(4), "Synthetic"(9),
-        // child-group count(4), entry count(4), then the first 16-byte entry ID.
-        let entry_id = read_id(&group, 9 + 16 + 1 + 4 + 9 + 4 + 4);
+        let group_name_len = usize::try_from(read_u32(&group, 42)).expect("group name length");
+        let child_group_count_offset = 46 + group_name_len;
+        assert_eq!(read_u32(&group, child_group_count_offset), 0);
+        let entry_count_offset = child_group_count_offset + 4;
+        assert_eq!(read_u32(&group, entry_count_offset), 1);
+        let entry_id = read_id(&group, entry_count_offset + 4);
+
         let entry = read_metadata_response(&core, handle, REQUEST_ENTRY_SUMMARY, Some(entry_id));
         assert_ok_kind(&entry, KIND_ENTRY);
+        assert_eq!(read_id(&entry, 9), entry_id);
+        assert_eq!(read_id(&entry, 25), group_id);
         assert!(
             entry
                 .windows(b"Example Login".len())
