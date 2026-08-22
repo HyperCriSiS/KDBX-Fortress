@@ -275,7 +275,7 @@ mod tests {
         assert_eq!(entry.username.as_deref(), Some("fixture-user"));
         assert_eq!(entry.url.as_deref(), Some("https://example.test"));
         assert!(entry.has_password);
-        assert!(!entry.has_totp);
+        assert!(!entry.has_otp);
         assert_eq!(entry.attachment_count, 0);
 
         let rendered = format!("{entry:?}");
