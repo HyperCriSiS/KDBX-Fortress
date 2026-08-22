@@ -4,7 +4,7 @@ The Android build now contains the first production Phase-1 foundation while pre
 
 ## Modules
 
-- `:app` is the production Android application module. It provides the Material 3/Compose shell with top-level Vault/Settings navigation, verifies the native ABI/capability boundary on startup, invokes the existing bounded Rust `lock-all` lifecycle operation when the Activity is backgrounded, and uses Android SAF for scoped KDBX document selection. It does not yet expose vault metadata, secret retrieval, mutation, persistence, networking, telemetry or Autofill.
+- `:app` is the production Android application module. It provides the Material 3/Compose shell with top-level Vault/Settings navigation, verifies the native ABI/capability boundary on startup, invokes the existing bounded Rust `lock-all` lifecycle operation when the Activity is backgrounded, and uses Android SAF for scoped KDBX document selection. It can consume the bounded ABI-v4 vault/group/entry metadata summaries through the shared bridge, but production browsing is not yet wired to a user-selected vault. It still exposes no secret retrieval, mutation, persistence, networking, telemetry or Autofill.
 - `:native-bridge` is the single Android/Kotlin owner of `world.w3b.kdbxfortress.bridge.NativeBridge`. Both applications depend on this module, preventing the production and test callers from drifting onto different JNI class definitions.
 - `:smoke-app` remains a CI-only runtime/lifecycle probe. It opens two deterministic fixture vaults, keeps only opaque handles in Kotlin, waits for an app-private `READY` marker, and reports `PASS` only after a real foreground → background transition causes Rust `lock-all` to invalidate both sessions.
 
@@ -18,9 +18,9 @@ CI cross-builds `kdbx-fortress-android-jni` and stages the generated `.so` under
 2. verifies mechanically that the production APK contains `lib/<abi>/libkdbx_fortress_android_jni.so`;
 3. rejects the built production APK if it requests legacy/broad storage or media permissions;
 4. cold-launches the real production Compose Activity on an emulator;
-5. launches the smoke application and exercises the same shared `NativeBridge` through Kotlin → JNI → Rust.
+5. launches the smoke application and exercises the same shared `NativeBridge` through Kotlin → JNI → Rust, including Vault → Root → Group → Entry metadata traversal before lifecycle locking.
 
-The bridge is still ABI v3 and exports only the five approved lifecycle functions: capability probe, bounded open, per-handle lock, global lock-all and handle-validity check. No broader read API is authorized by this module split.
+The bridge is ABI v4 and exports exactly six approved native functions: capability probe, bounded open, per-handle lock, global lock-all, handle-validity check and the single bounded `nativeReadMetadata` channel. The read channel returns only versioned `KFM1` vault/group/entry summaries; password values, OTP material, notes/custom secret fields and attachment content remain unavailable.
 
 The fixture password used by `:smoke-app` is deterministic test data, not a production credential. Temporary fixture password/KDBX byte arrays are cleared after use, while decrypted database ownership remains inside Rust.
 

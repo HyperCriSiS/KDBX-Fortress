@@ -35,6 +35,14 @@ FORBIDDEN_SOURCE_FRAGMENTS = (
     "ureq::",
 )
 
+FORBIDDEN_METADATA_GETTERS = (
+    ".get_password(",
+    ".get_raw_otp_value(",
+    ".get_title(",
+    ".get_username(",
+    ".get_url(",
+)
+
 DEPENDENCY_TABLE_NAMES = {
     "dependencies",
     "dev-dependencies",
@@ -123,6 +131,15 @@ def check(root: Path) -> None:
                     f"forbidden source fragment {fragment!r} in {path.relative_to(root)}"
                 )
 
+    metadata = core_src / "metadata.rs"
+    if metadata.exists():
+        metadata_text = metadata.read_text(encoding="utf-8")
+        for fragment in FORBIDDEN_METADATA_GETTERS:
+            if fragment in metadata_text:
+                raise PolicyError(
+                    f"metadata boundary must not use secret-revealing getter {fragment!r}"
+                )
+
 
 def expect_failure(root: Path, expected_fragment: str) -> None:
     try:
@@ -176,6 +193,20 @@ def self_test(real_root: Path) -> None:
             encoding="utf-8",
         )
         expect_failure(temp_root, "forbidden source fragment 'std::net'")
+
+    with tempfile.TemporaryDirectory(prefix="rust-core-policy-") as temp:
+        temp_root = Path(temp) / "project"
+        shutil.copytree(real_root, temp_root)
+        metadata = temp_root / "rust" / "vault-core" / "src" / "metadata.rs"
+        metadata.write_text(
+            metadata.read_text(encoding="utf-8")
+            + '\nfn forbidden_metadata(entry: &keepass::db::Entry) { let _ = entry.get_password(); }\n',
+            encoding="utf-8",
+        )
+        expect_failure(
+            temp_root,
+            "metadata boundary must not use secret-revealing getter '.get_password('",
+        )
 
     print("Rust core policy self-test OK")
 

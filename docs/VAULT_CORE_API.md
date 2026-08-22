@@ -30,7 +30,7 @@ Bridge callers must treat this value as opaque process-local capability metadata
 
 The registry is explicitly bounded. Lock immediately drops the Rust-owned session value and advances its generation; repeated lock is a no-op. Reusing a vacant slot therefore produces a different handle, so a copied stale handle cannot revive. Generation exhaustion permanently retires the slot instead of wrapping. `lock_all` is likewise idempotent and drops every live Rust-owned value. Handle `Debug` output is redacted.
 
-The registry remains internal to Rust. The concrete `VaultCore` owner and Android/JNI ABI v3 expose only opaque handle values plus bounded lifecycle operations; slot/generation structure and decrypted database values are never exported.
+The registry remains internal to Rust. The concrete `VaultCore` owner and Android/JNI ABI v4 expose only opaque handle values plus bounded lifecycle and metadata-summary operations; slot/generation structure and decrypted database values are never exported.
 
 ### `EntryId` / `GroupId`
 
@@ -42,7 +42,7 @@ Non-secret metadata required for the UI, for example database name, root group i
 
 ### `EntrySummary`
 
-Non-secret list/search representation: identifier, title, username/display metadata, URL metadata, icon/group identity and flags indicating presence of protected fields/attachments/TOTP. It must not contain password/TOTP seed/attachment bytes.
+Non-secret list/search representation: identifier, unprotected title/username/URL metadata, group identity, tags and presence/count indicators for password, OTP and attachments. If the KDBX source marks title, username or URL as protected, the summary withholds that field as absent instead of dereferencing it. It must not contain password/OTP secret material, notes/custom fields or attachment names/bytes.
 
 ### `SecretField`
 
@@ -58,7 +58,7 @@ Before the current bounded `open_vault` path invokes the selected KDBX engine, F
 
 ## Lifecycle API
 
-Conceptual core API; the current Android/JNI ABI v3 intentionally exposes only `open`, `lock`, `lock-all` and `is-valid` and does not yet return `VaultSummary` or expose create/read/mutation operations.
+Conceptual core API. Android/JNI ABI v4 retains the proven `open`, `lock`, `lock-all` and `is-valid` lifecycle operations and adds one metadata-only read channel; create, secret-read and mutation operations remain unexposed.
 
 ```text
 open_vault(kdbx_bytes, credentials, limits) -> VaultHandle + VaultSummary
@@ -79,20 +79,34 @@ Requirements:
 
 ## Read API
 
+The first production read tranche is metadata-only. `VaultCore` exposes bounded `read_vault_summary`, `read_group_summary` and `read_entry_summary` operations over a live `VaultHandle`. Group and entry identity is a copied 16-byte KDBX UUID (`MetadataId`), never a list index or native pointer.
+
+The Android/JNI adapter ABI v4 adds exactly one read export:
+
 ```text
-list_groups(handle, parent_group_id) -> [GroupSummary]
-list_entries(handle, group_id) -> [EntrySummary]
+nativeReadMetadata(handle, request_kind, optional_target_uuid_16) -> byte[]
+```
+
+The response uses the versioned `KFM1` binary envelope: four-byte magic, signed 32-bit status and one-byte payload kind followed by a bounded payload. The adapter rejects responses above 256 KiB; Kotlin independently validates the same ceiling, every length/count, UTF-8 field boundary, boolean encoding, expected payload kind and exact end-of-buffer consumption. Error envelopes contain only magic/status/kind and no partial metadata or engine diagnostic text. `NotFound` is frozen as adapter status `-12`.
+
+Default Rust metadata ceilings are 16 KiB per normal text field, 128 tags, 1024 bytes per tag, 4096 direct child groups and 4096 direct child entries. Kotlin applies matching or stricter decode ceilings.
+
+Current summary contents:
+
+- `VaultSummary`: optional database name, root group UUID, group/entry/attachment counts and the non-secret ignored-XML-presence flag.
+- `GroupSummary`: group UUID, optional parent UUID, group name, direct child-group UUIDs and direct entry UUIDs.
+- `EntrySummary`: entry UUID, parent-group UUID, unprotected-only title/username/URL, tags, password-field-present flag, OTP-field-present flag and attachment count. Protected title/username/URL source fields are returned as absent.
+
+Explicitly excluded from this metadata model and wire format are password values, OTP seeds/URIs/codes, protected title/username/URL values, notes, arbitrary/custom fields, attachment names and attachment bytes. Password/OTP presence flags are derived from field-key existence and do not dereference the field contents. The JNI source-policy gate forbids direct secret-content access in the adapter crate, while the Rust-core source-policy gate forbids secret-revealing `Entry` convenience getters inside the metadata module; summary extraction stays in `vault-core`. Protected values remain reserved for a later explicit secret API with separate byte ownership and release/clear semantics.
+
+Future conceptual operations such as search, explicit secret retrieval and attachment reads remain outside ABI v4:
+
+```text
 search_entries(handle, query, options) -> [EntrySummary]
-get_entry_metadata(handle, entry_id) -> EntryMetadata
 get_secret_field(handle, entry_id, field_name) -> SecretField
 list_attachments(handle, entry_id) -> [AttachmentSummary]
 read_attachment(handle, entry_id, attachment_id, limits) -> bytes
 ```
-
-Rules:
-- search/list APIs must not return password values or TOTP seeds.
-- protected values are retrieved only through explicit secret APIs.
-- attachment reads enforce size limits.
 
 ## Mutation API
 
@@ -161,9 +175,10 @@ The Rust core may expose entry matching/search primitives over normalized metada
    - [x] Prove an actual Android foreground → background transition reaches `Activity.onStop()` and invalidates multiple live Rust-owned vaults through the bounded `lock-all` export.
    - [x] Add deterministic lifecycle/concurrency/property/fuzz coverage: 20,000 model-based registry transitions, 100,000 raw-handle fuzz inputs and eight concurrent owner workers over real KDBX sessions pass the full Foundation gate.
 6. [x] Complete the Phase 1 Android foundation before widening JNI: production/shared/smoke modules, Material 3/Compose navigation shell, scoped SAF document selection and built-APK no-broad-storage-permission gate.
-7. [ ] Add the first bounded **metadata-only** read tranche through a deliberately versioned JNI surface: vault summary plus group/entry summaries, with explicit result/size ceilings and no secret values.
-8. [ ] After metadata listing is proven, add explicit single-secret retrieval as a separate audited tranche with short-lived byte ownership and clear/release semantics.
-9. [ ] Only then add mutation and production serialization/round-trip exposure.
+7. [x] Add the first bounded **metadata-only** read tranche through a deliberately versioned JNI surface: vault summary plus group/entry summaries, with explicit result/size ceilings and no secret values.
+8. [ ] Consume the proven metadata summaries in production group/entry browsing without duplicating decrypted vault state in Kotlin.
+9. [ ] After metadata browsing is proven, add explicit single-secret retrieval as a separate audited tranche with short-lived byte ownership and clear/release semantics.
+10. [ ] Only then add mutation and production serialization/round-trip exposure.
 
 ### Current handle-registry implementation evidence
 
@@ -200,12 +215,12 @@ Lifecycle behavior proven by unit tests and the full Foundation gate:
 
 `VaultCoreError` exposes only typed Fortress errors (`Open`, `CapacityExceeded`, `InvalidHandle`) and carries no decrypted content or registry details. `VaultSession` is intentionally private and has no public `Debug` surface.
 
-This core-owner tranche is now consumed by the bounded Android/JNI lifecycle adapter described below. Android lifecycle-triggered global locking and deterministic concurrent owner stress are proven by the adapter hardening gate; metadata/secret retrieval, mutation operations, raw database references and pointers remain outside this tranche.
+This core-owner tranche is now consumed by the bounded Android/JNI lifecycle + metadata adapter described below. Android lifecycle-triggered global locking and deterministic concurrent owner stress are proven by the adapter hardening gate; bounded metadata summaries are now exposed, while secret retrieval, mutation operations, raw database references and pointers remain outside the boundary.
 
 
-## Android/JNI lifecycle adapter — implemented Phase 0 tranche
+## Android/JNI lifecycle + metadata adapter — implemented Phase 0/1 tranche
 
-Adapter ABI 3 exposes exactly five `NativeBridge` methods: the non-secret capability probe plus bounded `open`, `lock`, `lock-all` and `is-valid`. `rust/vault-core` remains JNI/Android-free; the separate `rust/android-jni` crate owns the process-local bridge `VaultCore`.
+Adapter ABI 4 exposes exactly six `NativeBridge` native methods: the non-secret capability probe, bounded `open`, `lock`, `lock-all`, `is-valid`, and the single metadata-only `nativeReadMetadata` channel. `rust/vault-core` remains JNI/Android-free; the separate `rust/android-jni` crate owns the process-local bridge `VaultCore`.
 
 The current ingress and ownership contract is deliberately narrow:
 
@@ -215,10 +230,11 @@ The current ingress and ownership contract is deliberately narrow:
 - KDBX engine diagnostics are collapsed into sanitized categories rather than copied into Kotlin;
 - Rust copies of credential byte vectors are moved immediately into `VaultCredentials` zeroizing owners;
 - owner operations are panic-contained while the Rust mutex is still held; a contained panic immediately executes `lock_all`, so decrypted sessions do not survive the failing operation and no panic payload crosses JNI;
-- an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before poison is cleared and service resumes with the stable internal-error category;
+- an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before clearing poison and resuming service with the stable internal-error category;
 - malformed handles remain sanitized, and stale handles cannot revive or affect a newly reused registry slot/generation;
-- the JNI source-policy and binary-symbol gates allow exactly the five approved exports and continue to forbid network dependencies and additional unsafe code paths.
+- the JNI source-policy and binary-symbol gates allow exactly the six approved ABI-v4 exports and continue to forbid network dependencies, opportunistic JNI growth, direct password/OTP/attachment-content reads in the adapter and additional unsafe code paths; the Rust-core source policy separately forbids secret-revealing `Entry` getters in the metadata module so protected source fields cannot be silently flattened into summaries;
+- metadata reads use the `KFM1` bounded binary envelope and stable `NotFound = -12` status, with no partial payload on failure and no secret values in successful summaries.
 
 The Android emulator gate packages a deterministic KDBX fixture and now proves the lifecycle boundary in two stages. The baseline gate proves `open → is-valid → lock → stale`. The ABI-v3 hardening gate first verifies malformed-handle behavior, then keeps two real KDBX vault handles simultaneously live, writes an app-private `READY` marker only after both are confirmed valid, and has the external harness send the emulator Home key. `PASS` is written exclusively from `Activity.onStop()` after Rust `lock-all` invalidates both handles. The stale-generation/slot-reuse case remains a Rust-level deterministic test so the Android smoke does not duplicate expensive KDF work. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
 
-The dedicated panic/poison/stale-handle/Android-lifecycle proof and deterministic lifecycle/concurrency/property/fuzz stress gate are complete. The Phase 1 Android module/native-library, Compose/navigation and scoped-SAF foundation is also complete without widening the five-export ABI-v3 lifecycle surface. The next gate is a deliberately bounded metadata-only read API; explicit secret retrieval remains a later, separate audited tranche.
+The dedicated panic/poison/stale-handle/Android-lifecycle proof and deterministic lifecycle/concurrency/property/fuzz stress gate are complete. The Phase 1 Android module/native-library, Compose/navigation and scoped-SAF foundation is complete, and ABI v4 now adds only the single bounded metadata-read channel. The emulator smoke traverses Vault → Root → Group → Entry metadata through Kotlin/JNI/Rust before the existing foreground → background `lock-all` proof. Explicit secret retrieval remains a later, separate audited tranche; the immediate Phase-1 consumer is production group/entry browsing over metadata summaries.

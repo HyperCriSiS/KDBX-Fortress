@@ -1,26 +1,29 @@
 //! Narrow Android/JNI adapter for KDBX Fortress.
 //!
 //! The adapter exposes only non-secret capabilities and the bounded vault
-//! lifecycle operations required to keep decrypted database state inside Rust.
-//! Kotlin receives opaque process-local handles and stable sanitized status
-//! codes; no database snapshots, entry fields, or secret strings cross JNI.
+//! lifecycle operations required to keep decrypted database state inside Rust,
+//! plus one bounded metadata-only read operation. Kotlin receives opaque
+//! process-local handles and versioned summary bytes; password values, OTP
+//! seeds, notes, custom fields and attachment bytes never cross this boundary.
+
+mod metadata_wire;
 
 use jni::{
     EnvUnowned, Outcome,
     objects::{JByteArray, JClass},
-    sys::{jint, jlong},
+    sys::{jbyteArray, jint, jlong},
 };
 use std::{
     panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
     sync::Mutex,
 };
 use vault_core::{
-    KdbxOpenError, KdbxOpenLimits, KdbxPreflightError, VaultCore, VaultCoreError, VaultCredentials,
-    VaultHandle,
+    KdbxOpenError, KdbxOpenLimits, KdbxPreflightError, METADATA_ID_BYTES, MetadataId, VaultCore,
+    VaultCoreError, VaultCredentials, VaultHandle,
 };
 
 /// ABI version of this Android/JNI adapter contract.
-pub const ADAPTER_ABI_VERSION: u32 = 3;
+pub const ADAPTER_ABI_VERSION: u32 = 4;
 
 /// Maximum number of simultaneously unlocked vaults owned by the Android adapter.
 const MAX_OPEN_VAULTS: u32 = 4;
@@ -67,6 +70,7 @@ pub enum LifecycleStatus {
     InvalidHandle = -9,
     Internal = -10,
     PanicContained = -11,
+    NotFound = -12,
 }
 
 impl LifecycleStatus {
@@ -265,6 +269,20 @@ fn lock_all_vaults_response() -> jint {
     }
 }
 
+fn read_metadata_response(raw: jlong, request: jint, target: Option<MetadataId>) -> Vec<u8> {
+    let handle = match decode_handle(raw) {
+        Ok(handle) => handle,
+        Err(status) => return metadata_wire::error_response(status),
+    };
+
+    match with_vault_core(|core| {
+        metadata_wire::read_metadata_response(core, handle, request, target)
+    }) {
+        Ok(response) => response,
+        Err(status) => metadata_wire::error_response(status),
+    }
+}
+
 /// Returns a packed status/value capability response.
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
@@ -355,6 +373,49 @@ pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsV
     guarded_jint(|| is_handle_valid_response(handle))
 }
 
+/// Returns one versioned bounded metadata response as a Java byte array.
+///
+/// Request 1 returns the vault summary and requires a null target ID. Requests
+/// 2 and 3 return one group or entry summary and require exactly 16 target-ID
+/// bytes. All ordinary failures are encoded as sanitized status-only envelopes;
+/// a null return is reserved for JNI allocation/access failure or an outer panic.
+#[allow(unsafe_code)]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeReadMetadata<
+    'local,
+>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    handle: jlong,
+    request: jint,
+    target_id: JByteArray<'local>,
+) -> jbyteArray {
+    let outcome = env.with_env(|env| -> jni::errors::Result<jbyteArray> {
+        let target = if target_id.as_raw().is_null() {
+            None
+        } else {
+            if target_id.len(env)? != METADATA_ID_BYTES {
+                let response = metadata_wire::error_response(LifecycleStatus::InvalidArgument);
+                return Ok(env.byte_array_from_slice(&response)?.into_raw());
+            }
+            let raw = env.convert_byte_array(&target_id)?;
+            let Ok(id) = <[u8; METADATA_ID_BYTES]>::try_from(raw.as_slice()) else {
+                let response = metadata_wire::error_response(LifecycleStatus::InvalidArgument);
+                return Ok(env.byte_array_from_slice(&response)?.into_raw());
+            };
+            Some(MetadataId::from_bytes(id))
+        };
+
+        let response = read_metadata_response(handle, request, target);
+        Ok(env.byte_array_from_slice(&response)?.into_raw())
+    });
+
+    match outcome.into_outcome() {
+        Outcome::Ok(response) => response,
+        Outcome::Err(_) | Outcome::Panic(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Locks every live Rust-owned vault. Intended for Android lifecycle transitions
 /// such as the app moving to the background. The operation is idempotent.
 #[allow(unsafe_code)]
@@ -374,7 +435,7 @@ mod tests {
         ADAPTER_ABI_VERSION, AdapterStatus, CAPABILITY_ADAPTER_ABI_VERSION,
         CAPABILITY_CORE_ABI_VERSION, CapabilityResponse, LifecycleStatus, capability_response,
         guarded_capability_response, guarded_jint, is_handle_valid_on_core, lock_vault_on_core,
-        map_open_error, open_vault_on_core, with_core_mutex,
+        map_open_error, open_vault_on_core, read_metadata_response, with_core_mutex,
     };
     use std::{
         panic::{AssertUnwindSafe, catch_unwind},
@@ -605,6 +666,18 @@ mod tests {
     }
 
     #[test]
+    fn metadata_response_is_sanitized_for_invalid_handle() {
+        let response = read_metadata_response(0, 1, None);
+        assert_eq!(&response[..4], b"KFM1");
+        assert_eq!(
+            i32::from_le_bytes(response[4..8].try_into().expect("status")),
+            LifecycleStatus::InvalidHandle as i32
+        );
+        assert_eq!(response[8], 0);
+        assert_eq!(response.len(), 9);
+    }
+
+    #[test]
     fn lifecycle_error_mapping_is_sanitized() {
         assert_eq!(
             map_open_error(VaultCoreError::Open(KdbxOpenError::Preflight(
@@ -623,8 +696,8 @@ mod tests {
     }
 
     #[test]
-    fn status_codes_are_frozen_for_adapter_abi_three() {
-        assert_eq!(ADAPTER_ABI_VERSION, 3);
+    fn status_codes_are_frozen_for_adapter_abi_four() {
+        assert_eq!(ADAPTER_ABI_VERSION, 4);
         assert_eq!(AdapterStatus::Ok as u32, 0);
         assert_eq!(AdapterStatus::UnsupportedRequest as u32, 1);
         assert_eq!(AdapterStatus::PanicContained as u32, 2);
@@ -639,5 +712,6 @@ mod tests {
         assert_eq!(LifecycleStatus::InvalidHandle as i32, -9);
         assert_eq!(LifecycleStatus::Internal as i32, -10);
         assert_eq!(LifecycleStatus::PanicContained as i32, -11);
+        assert_eq!(LifecycleStatus::NotFound as i32, -12);
     }
 }

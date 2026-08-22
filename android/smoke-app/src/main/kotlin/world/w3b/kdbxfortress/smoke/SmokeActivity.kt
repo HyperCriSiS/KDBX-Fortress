@@ -25,6 +25,7 @@ class SmokeActivity : Activity() {
                 // longer than Android's `am start -W` launch timeout, so READY
                 // is an explicit synchronization point for the external harness.
                 lifecycleHandles = NativeBridge.openLifecycleProbeVaults(kdbx, password)
+                NativeBridge.verifyMetadataReadBoundary(lifecycleHandles[0])
                 lifecycleArmed = true
                 File(filesDir, READY_FILE).writeText("READY", Charsets.US_ASCII)
             } finally {
