@@ -10,7 +10,7 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 1 in progress. Phase 0 is complete, including the KDBX accepted/adversarial corpus, opaque generation-checked handles, credential and secret-memory boundaries, ABI-v3 JNI lifecycle hardening, real Android `Activity.onStop()` lock-all proof, and deterministic lifecycle/concurrency/property/fuzz stress gate. The first Phase-1 foundation is now implemented: the Android build has separate production `:app`, shared `:native-bridge`, and CI-only `:smoke-app` modules; both applications consume the same verified `NativeBridge`, the Rust `.so` is packaged through the shared library module, and CI builds the production APK and mechanically verifies that it contains the JNI library while the emulator continues to exercise the same shared bridge. The next prioritized tranche is the Material/Compose application shell and navigation architecture; the JNI surface remains frozen at the five proven lifecycle exports until the bounded read-only API is designed and gated.**
+Status: **Phase 1 in progress. Phase 0 is complete. The production Android `:app`, shared `:native-bridge` and CI-only `:smoke-app` modules are established; the Material 3/Compose shell and top-level navigation now build and cold-launch on the emulator through the same verified native bridge. Scoped document access is implemented through Android SAF using persistable `content://` grants with no broad storage/media permissions. The Open path is active; the already-wired Create contract remains UI-gated until the verified Rust KDBX 4.1 writer can initialize a valid vault instead of leaving an empty invalid document. The next security-critical tranche is the deliberately bounded read-only Rust/JNI metadata API; the current ABI remains frozen at the five proven lifecycle exports until that API is designed and gated.**
 
 Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203db7b125086dd9455790a1bb5f`, with the authenticated XML adversarial closure validated on PR #21 before merge.
 
@@ -94,8 +94,11 @@ Goal: prove a bounded, interoperable and auditable Rust KDBX core before exposin
 - [x] Create the production Android application/modules and wire the verified Rust library into the Android build.
   - [x] Split the Android build into production `:app`, shared `:native-bridge`, and CI-only `:smoke-app` modules so there is one Kotlin owner for the exact JNI class.
   - [x] Package the generated Rust JNI `.so` through `:native-bridge`, build both APKs in CI, and mechanically verify the production APK contains the native library while the emulator continues to prove the shared bridge/lifecycle path.
-- [ ] Establish the Material/Compose application shell and navigation architecture.
-- [ ] Implement create/open file selection through Android Storage Access Framework without broad storage permissions.
+- [x] Establish the Material/Compose application shell and navigation architecture.
+- [x] Implement scoped create/open document selection through Android Storage Access Framework without broad storage permissions.
+  - [x] Open KDBX documents through `ACTION_OPEN_DOCUMENT`, retain only `content://` URIs/display names in Android state and request persistable read access when the provider grants it.
+  - [x] Pre-wire `ACTION_CREATE_DOCUMENT` with bounded display-name handling and persistable read/write grants, but keep the production Create action disabled until the verified Rust KDBX 4.1 writer can initialize a valid vault immediately.
+  - [x] Gate the built production APK against legacy/broad storage and media permissions in CI.
 - [ ] Expose only the bounded read-only Rust vault API through the stable JNI wrapper.
 - [ ] Display groups and entries without duplicating the decrypted database model in Kotlin.
 - [ ] Implement search/filtering through Rust-backed handles/queries.
@@ -232,8 +235,8 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Production Android vault use is no longer blocked on JNI reachability, lifecycle/error-boundary hardening, owner/bridge stress coverage, or the existence/native wiring of a production Android module; it is now blocked on the Material/Compose application shell and deliberately scoped production read API.** The production `:app` consumes the same shared `:native-bridge` as the emulator-tested smoke app, and CI proves the native library is packaged in the production APK while the five-export ABI-v3 boundary remains unchanged.
-2. **Metadata/secret retrieval remains blocked until the Phase-1 application shell/navigation foundation is established and the bounded read API is deliberately designed.** Subsequent read APIs must preserve byte-oriented credentials, Rust-only decrypted-state ownership, opaque handles, sanitized errors and explicit lock semantics; the JNI surface must not grow opportunistically as part of UI work.
+1. **Production Android vault use is no longer blocked on JNI reachability, lifecycle/error-boundary hardening, owner/bridge stress coverage, production module wiring, Compose/navigation, or scoped SAF selection; it is now blocked on the deliberately bounded production read API.** The production app cold-launches on the emulator, consumes the same shared `:native-bridge`, uses Android SAF instead of broad storage permissions, and still exposes only the five lifecycle ABI-v3 exports.
+2. **Metadata/secret retrieval is now blocked only on deliberate bounded read-API design and implementation.** Metadata listing must land before explicit single-secret retrieval, and both must preserve byte-oriented credentials, Rust-only decrypted-state ownership, opaque handles, sanitized errors and explicit lock semantics; the JNI surface must not grow opportunistically as part of UI/storage work.
 3. **Production write exposure remains constrained by the documented KDBX 4.1-only initial write envelope and must continue to preserve the established unknown-XML fail-closed and independent-reference interoperability gates as the API grows.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
@@ -247,7 +250,9 @@ There is no known external organizational blocker and no open GitHub issue curre
    - [x] Prove an actual Android foreground → background transition invokes `Activity.onStop()` and `lock-all`, invalidating multiple simultaneously live Rust-owned vault handles.
    - [x] Expand deterministic lifecycle/concurrency/property/fuzz coverage over the bounded owner/handle model: 20,000 model transitions, 100,000 raw-handle fuzz inputs, and eight concurrent owner workers over real KDBX sessions pass the full Foundation gate.
 4. [x] Begin Phase 1 by creating the production Android application/modules and wiring the verified Rust library into the Android build without broadening the JNI surface yet.
-5. [ ] Establish the Material/Compose application shell and navigation architecture while keeping the five-export JNI surface frozen.
+5. [x] Establish the Material/Compose application shell and navigation architecture while keeping the five-export JNI surface frozen.
+6. [x] Add scoped Android SAF document selection with persistable URI grants and a built-APK gate forbidding broad storage/media permissions; keep Create UI-gated until a valid Rust KDBX 4.1 initializer exists.
+7. [ ] Design and implement the first bounded **metadata-only** Rust/JNI read tranche (vault summary + group/entry summaries) before any explicit secret retrieval API.
 
 ## Completion status
 
