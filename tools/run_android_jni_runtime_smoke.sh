@@ -42,6 +42,64 @@ if ! adb shell dumpsys activity activities | grep -Fq "$production_package/.Main
 fi
 
 echo "Android production Compose shell: PASS"
+
+# Exercise the real production Open action rather than only proving Activity
+# launch. Compose semantics are exposed through UIAutomator; tapping the button
+# must hand control to Android's DocumentsUI SAF picker.
+ui_dump_device="/sdcard/kdbx-fortress-ui.xml"
+ui_dump_host="${RUNNER_TEMP:-/tmp}/kdbx-fortress-ui.xml"
+adb shell uiautomator dump "$ui_dump_device" >/dev/null
+adb exec-out cat "$ui_dump_device" > "$ui_dump_host"
+
+read -r open_x open_y < <(
+  python3 - "$ui_dump_host" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+for node in root.iter("node"):
+    if node.attrib.get("text") != "Open vault":
+        continue
+    bounds = node.attrib.get("bounds", "")
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
+    if match is None:
+        continue
+    left, top, right, bottom = map(int, match.groups())
+    print((left + right) // 2, (top + bottom) // 2)
+    raise SystemExit(0)
+
+raise SystemExit("Open vault UI node not found")
+PY
+)
+
+adb shell input tap "$open_x" "$open_y"
+
+documents_ui=""
+for attempt in $(seq 1 10); do
+  documents_ui=$(adb shell dumpsys activity activities | grep -im1 "documentsui" || true)
+  if [[ -n "$documents_ui" ]]; then
+    break
+  fi
+  sleep 1
+done
+
+if [[ -z "$documents_ui" ]]; then
+  echo "Open vault did not delegate to Android DocumentsUI/SAF." >&2
+  adb shell uiautomator dump /dev/tty 2>/dev/null || true
+  adb shell dumpsys activity activities | head -n 160 || true
+  exit 1
+fi
+
+echo "Android SAF open picker: PASS"
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+
+if ! adb shell dumpsys activity activities | grep -Fq "$production_package/.MainActivity"; then
+  echo "Production MainActivity did not resume after dismissing the SAF picker." >&2
+  exit 1
+fi
+
 adb shell input keyevent KEYCODE_HOME
 adb shell am force-stop "$production_package"
 
