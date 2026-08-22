@@ -18,6 +18,11 @@ FORBIDDEN_SOURCE_FRAGMENTS = (
     "reqwest::",
     "ureq::",
     "SecretBytes",
+    "get_password",
+    "get_raw_otp_value",
+    "fields::PASSWORD",
+    "fields::OTP",
+    "attachment.content",
     "unsafe fn",
     "unsafe extern",
     "unsafe {",
@@ -28,6 +33,7 @@ EXPECTED_EXPORTS = (
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockVault",
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeLockAllVaults",
     "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsVaultHandleValid",
+    "Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeReadMetadata",
 )
 JNI_EXPORT_PREFIX = "Java_world_w3b_kdbxfortress_bridge_NativeBridge_native"
 EXPECTED_UNSAFE_ALLOW = "#[allow(unsafe_code)]"
@@ -171,7 +177,7 @@ def self_test(real_root: Path) -> None:
         manifest.write_text(text, encoding="utf-8")
         expect_failure(temp_root, "must build exactly cdylib and rlib")
 
-    print("Android/JNI lifecycle policy self-test OK")
+    print("Android/JNI boundary policy self-test OK")
 
 
 def main() -> None:
@@ -185,7 +191,7 @@ def main() -> None:
             self_test(root)
         else:
             check(root)
-            print("Android/JNI lifecycle policy OK")
+            print("Android/JNI boundary policy OK")
     except (PolicyError, AssertionError) as error:
         raise SystemExit(f"Android/JNI policy FAILED: {error}") from error
 
