@@ -45,6 +45,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        // Temporary provider grants may die with the current Activity/process. Only
+        // persist UI state when Android accepted a persistable SAF grant.
         selectedDocument
             ?.takeIf(VaultDocumentSelection::persistentAccess)
             ?.let { selection ->
