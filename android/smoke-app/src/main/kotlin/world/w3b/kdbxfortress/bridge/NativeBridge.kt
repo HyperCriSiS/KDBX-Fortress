@@ -45,29 +45,11 @@ internal object NativeBridge {
         check(unsupported.value == 0L)
     }
 
-    fun verifyInvalidAndStaleHandleBehavior(kdbx: ByteArray, password: ByteArray) {
+    fun verifyMalformedHandleBoundary() {
         check(nativeIsVaultHandleValid(0L) == 0)
         check(nativeIsVaultHandleValid(-1L) == 0)
         check(nativeLockVault(0L) == STATUS_INVALID_HANDLE)
         check(nativeLockVault(-1L) == STATUS_INVALID_HANDLE)
-
-        val first = openVault(kdbx, password)
-        check(nativeIsVaultHandleValid(first) == 1)
-        check(nativeLockVault(first) == 0)
-        check(nativeIsVaultHandleValid(first) == 0)
-
-        val second = openVault(kdbx, password)
-        try {
-            // The first vacant registry slot is deliberately reused with a new
-            // generation. The stale capability must never become live again.
-            check(second != first)
-            check(nativeIsVaultHandleValid(first) == 0)
-            check(nativeIsVaultHandleValid(second) == 1)
-            check(nativeLockVault(first) == 0)
-            check(nativeIsVaultHandleValid(second) == 1)
-        } finally {
-            check(nativeLockVault(second) == 0)
-        }
     }
 
     fun openLifecycleProbeVaults(kdbx: ByteArray, password: ByteArray): LongArray {

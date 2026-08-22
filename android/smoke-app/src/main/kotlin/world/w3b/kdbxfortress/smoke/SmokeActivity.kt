@@ -15,13 +15,18 @@ class SmokeActivity : Activity() {
 
         try {
             NativeBridge.verifyRuntimeBoundary()
+            NativeBridge.verifyMalformedHandleBoundary()
 
             val kdbx = assets.open(FIXTURE_NAME).use { it.readBytes() }
             val password = FIXTURE_PASSWORD.toByteArray(Charsets.UTF_8)
             try {
-                NativeBridge.verifyInvalidAndStaleHandleBehavior(kdbx, password)
+                // Two real decrypted vaults remain Rust-owned and live until CI
+                // deliberately backgrounds this Activity. KDF work can take
+                // longer than Android's `am start -W` launch timeout, so READY
+                // is an explicit synchronization point for the external harness.
                 lifecycleHandles = NativeBridge.openLifecycleProbeVaults(kdbx, password)
                 lifecycleArmed = true
+                File(filesDir, READY_FILE).writeText("READY", Charsets.US_ASCII)
             } finally {
                 password.fill(0)
                 kdbx.fill(0)
@@ -63,6 +68,7 @@ class SmokeActivity : Activity() {
     }
 
     private companion object {
+        const val READY_FILE = "jni-smoke-ready"
         const val RESULT_FILE = "jni-smoke-result"
         const val FIXTURE_NAME = "basic-kdbx4.kdbx"
         const val FIXTURE_PASSWORD = "fixture-password"
