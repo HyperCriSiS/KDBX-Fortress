@@ -72,10 +72,7 @@ fn push_text(bytes: &mut Vec<u8>, value: &str) -> Result<(), LifecycleStatus> {
     Ok(())
 }
 
-fn push_optional_text(
-    bytes: &mut Vec<u8>,
-    value: Option<&str>,
-) -> Result<(), LifecycleStatus> {
+fn push_optional_text(bytes: &mut Vec<u8>, value: Option<&str>) -> Result<(), LifecycleStatus> {
     match value {
         Some(value) => {
             bytes.push(1);
@@ -192,7 +189,10 @@ mod tests {
 
     fn assert_ok_kind(bytes: &[u8], kind: u8) {
         assert_eq!(&bytes[..4], WIRE_MAGIC);
-        assert_eq!(i32::from_le_bytes(bytes[4..8].try_into().expect("status")), 0);
+        assert_eq!(
+            i32::from_le_bytes(bytes[4..8].try_into().expect("status")),
+            0
+        );
         assert_eq!(bytes[8], kind);
     }
 
@@ -205,7 +205,11 @@ mod tests {
         let (core, handle) = open();
         let vault = read_metadata_response(&core, handle, REQUEST_VAULT_SUMMARY, None);
         assert_ok_kind(&vault, KIND_VAULT);
-        assert!(!vault.windows(b"fixture-secret".len()).any(|w| w == b"fixture-secret"));
+        assert!(
+            !vault
+                .windows(b"fixture-secret".len())
+                .any(|w| w == b"fixture-secret")
+        );
 
         let mut root_offset = 10;
         if vault[9] == 1 {
@@ -216,16 +220,32 @@ mod tests {
         let group = read_metadata_response(&core, handle, REQUEST_GROUP_SUMMARY, Some(root_id));
         assert_ok_kind(&group, KIND_GROUP);
         assert!(group.windows(b"Synthetic".len()).any(|w| w == b"Synthetic"));
-        assert!(!group.windows(b"fixture-secret".len()).any(|w| w == b"fixture-secret"));
+        assert!(
+            !group
+                .windows(b"fixture-secret".len())
+                .any(|w| w == b"fixture-secret")
+        );
 
         // Root group: id(16), parent marker(1), name length(4), "Synthetic"(9),
         // child-group count(4), entry count(4), then the first 16-byte entry ID.
         let entry_id = read_id(&group, 9 + 16 + 1 + 4 + 9 + 4 + 4);
         let entry = read_metadata_response(&core, handle, REQUEST_ENTRY_SUMMARY, Some(entry_id));
         assert_ok_kind(&entry, KIND_ENTRY);
-        assert!(entry.windows(b"Example Login".len()).any(|w| w == b"Example Login"));
-        assert!(entry.windows(b"fixture-user".len()).any(|w| w == b"fixture-user"));
-        assert!(!entry.windows(b"fixture-secret".len()).any(|w| w == b"fixture-secret"));
+        assert!(
+            entry
+                .windows(b"Example Login".len())
+                .any(|w| w == b"Example Login")
+        );
+        assert!(
+            entry
+                .windows(b"fixture-user".len())
+                .any(|w| w == b"fixture-user")
+        );
+        assert!(
+            !entry
+                .windows(b"fixture-secret".len())
+                .any(|w| w == b"fixture-secret")
+        );
     }
 
     #[test]
