@@ -14,7 +14,7 @@ The read operation returns a versioned bounded binary envelope identified by `KF
 
 Rust applies explicit metadata ceilings before encoding, and the adapter refuses a response above 256 KiB. Kotlin independently validates the response ceiling, magic, status, kind, all lengths/counts and exact payload exhaustion. Failure responses contain no partial record or engine diagnostic text. A missing UUID maps to the frozen sanitized `NotFound = -12` adapter status.
 
-The metadata allowlist is intentionally narrow. Entry summaries may contain title, username, URL, tags and only boolean/count indicators for password, TOTP and attachments. Password values, OTP seeds/URIs/codes, notes, custom fields, attachment names and attachment bytes are excluded. Source-policy CI forbids direct password/OTP/attachment-content reads in the JNI adapter so metadata extraction remains in `vault-core`.
+The metadata allowlist is intentionally narrow. Entry summaries may contain title, username, URL, tags and only boolean/count indicators for password, OTP and attachments. Password values, OTP seeds/URIs/codes, notes, custom fields, attachment names and attachment bytes are excluded. Source-policy CI forbids direct password/OTP/attachment-content reads in the JNI adapter so metadata extraction remains in `vault-core`.
 
 ## Consequences
 
