@@ -14,7 +14,7 @@ The read operation returns a versioned bounded binary envelope identified by `KF
 
 Rust applies explicit metadata ceilings before encoding, and the adapter refuses a response above 256 KiB. Kotlin independently validates the response ceiling, magic, status, kind, all lengths/counts and exact payload exhaustion. Failure responses contain no partial record or engine diagnostic text. A missing UUID maps to the frozen sanitized `NotFound = -12` adapter status.
 
-The metadata allowlist is intentionally narrow. Entry summaries may contain title, username, URL, tags and only boolean/count indicators for password, OTP and attachments. Password values, OTP seeds/URIs/codes, notes, custom fields, attachment names and attachment bytes are excluded. Source-policy CI forbids direct password/OTP/attachment-content reads in the JNI adapter so metadata extraction remains in `vault-core`.
+The metadata allowlist is intentionally narrow. Entry summaries may contain title, username and URL only when the corresponding KDBX source field is unprotected; a protected source value is withheld as absent instead of being dereferenced into Kotlin. Tags and only boolean/count indicators for password, OTP and attachments may also be returned. Password and OTP presence is determined from field-key existence only, so the metadata path never reads those secret values. Password values, OTP seeds/URIs/codes, notes, custom fields, attachment names and attachment bytes are excluded. Source-policy CI forbids direct password/OTP/attachment-content reads in the JNI adapter and also forbids secret-revealing `Entry` convenience getters in the `vault-core` metadata module.
 
 ## Consequences
 
@@ -27,4 +27,4 @@ The metadata allowlist is intentionally narrow. Entry summaries may contain titl
 
 ## Verification
 
-The Foundation gate covers formatting, Clippy, unit tests, KDBX interoperability and Android target checks. The JNI boundary gate mechanically verifies the exact six exported native symbols. The Android runtime smoke packages the shared bridge, validates the APK permission boundary, traverses Vault → Root → Group → Entry metadata using the deterministic KDBX fixture, and then proves the existing foreground → background `lock-all` invalidates live Rust-owned vault sessions.
+The Foundation gate covers formatting, Clippy, unit tests, KDBX interoperability and Android target checks. Its fast Rust-core source policy rejects secret-revealing entry getters in the metadata module, and unit coverage proves protected values are withheld rather than copied. The JNI boundary gate mechanically verifies the exact six exported native symbols. The Android runtime smoke packages the shared bridge, validates the APK permission boundary, traverses Vault → Root → Group → Entry metadata using the deterministic KDBX fixture, and then proves the existing foreground → background `lock-all` invalidates live Rust-owned vault sessions.
