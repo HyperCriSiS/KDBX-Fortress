@@ -381,7 +381,9 @@ pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeIsV
 /// a null return is reserved for JNI allocation/access failure or an outer panic.
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeReadMetadata<'local>(
+pub extern "system" fn Java_world_w3b_kdbxfortress_bridge_NativeBridge_nativeReadMetadata<
+    'local,
+>(
     mut env: EnvUnowned<'local>,
     _class: JClass<'local>,
     handle: jlong,
