@@ -1,6 +1,6 @@
 # ADR 0001 — Android platform baseline
 
-Status: Accepted for the Phase-1 baseline
+Status: Accepted and verified for the Phase-1 baseline
 
 ## Decision
 
@@ -12,7 +12,7 @@ Status: Accepted for the Phase-1 baseline
 
 Android Autofill begins at API 26, which is a core product requirement. Supporting older Android versions would add compatibility work without providing the native Autofill path the application is being designed around.
 
-`compileSdk` and `targetSdk` follow the current Android platform baseline selected for the first build skeleton and must be re-verified when the Android project is created.
+`compileSdk` and `targetSdk` follow the Phase-1 Android platform baseline. The production `:app`, shared `:native-bridge` and CI-only `:smoke-app` modules now build against this baseline in CI; both application modules target SDK 37 and the shared library preserves `minSdk 26`.
 
 ## Consequences
 
