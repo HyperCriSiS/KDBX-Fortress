@@ -200,11 +200,7 @@ fn map_open_error(error: VaultCoreError) -> LifecycleStatus {
     }
 }
 
-fn open_vault_on_core(
-    core: &mut VaultCore,
-    data: &[u8],
-    credentials: &VaultCredentials,
-) -> jlong {
+fn open_vault_on_core(core: &mut VaultCore, data: &[u8], credentials: &VaultCredentials) -> jlong {
     match core.open_vault(data, credentials, KdbxOpenLimits::default()) {
         Ok(handle) => jlong::try_from(handle.as_raw())
             .ok()
