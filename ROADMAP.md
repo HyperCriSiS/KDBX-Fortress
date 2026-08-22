@@ -10,7 +10,7 @@ The acceptance criteria and scope in this file are normative unless changed deli
 
 ## Current status
 
-Status: **Phase 0 in progress; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary, engine-owned secret-memory/zeroization gate, concrete Rust vault-owner lifecycle, executable Android/Kotlin JNI caller, bounded `open`/`lock`/`is-valid`, and the dedicated JNI lifecycle-hardening gate are complete. Adapter ABI v3 now contains owner-operation panics while the Rust mutex is held, fails closed on poisoned-owner recovery, proves malformed/stale handles remain harmless across generation/slot reuse, and adds one bounded `lock-all` lifecycle export. The Android emulator proves two real Rust-owned KDBX sessions are invalidated by `Activity.onStop()` after an actual foreground → background transition. The next security-critical tranche is deterministic lifecycle/concurrency/property/fuzz coverage before any metadata or secret-retrieval API.**
+Status: **Phase 0 complete; the defined KDBX accepted/adversarial corpus gate, opaque generation-checked handle registry, Fortress credential boundary, engine-owned secret-memory/zeroization gate, concrete Rust vault-owner lifecycle, executable Android/Kotlin JNI caller, bounded `open`/`lock`/`is-valid`/`lock-all`, dedicated JNI lifecycle hardening, and deterministic lifecycle/concurrency/property/fuzz stress gate are complete. Adapter ABI v3 contains owner-operation panics while the Rust mutex is held, fails closed on poisoned-owner recovery, and keeps malformed/stale handles harmless across generation/slot reuse. The Android emulator proves two real Rust-owned KDBX sessions are invalidated by `Activity.onStop()` after an actual foreground → background transition. Deterministic stress coverage additionally proves 20,000 model-based registry transitions, 100,000 raw-handle fuzz inputs, and eight concurrent owner workers over real KDBX sessions without stale-handle revival, owner poisoning, or state escape. Phase 1 is next: create the production Android application/modules and wire the already-verified Rust library into the Android build before deliberately expanding the bounded read-only JNI surface.**
 
 Roadmap baseline after the corpus-validation tranche: `main` at `ba1b9ef41b06203db7b125086dd9455790a1bb5f`, with the authenticated XML adversarial closure validated on PR #21 before merge.
 
@@ -230,8 +230,8 @@ Before production release:
 
 There is no known external organizational blocker and no open GitHub issue currently blocking work. The active blockers are technical gates owned by this project:
 
-1. **Production Android vault use is no longer blocked on basic JNI reachability or the dedicated lifecycle/error-boundary proof; it is blocked on owner/bridge stress coverage and the absence of a deliberately scoped production read API.** The bounded ABI-v3 wrapper now proves real Android `open`/`is-valid`/`lock`/`lock-all` behavior while decrypted databases remain Rust-owned, including panic containment, poisoned-owner fail-closed recovery, stale-generation safety and lifecycle-triggered global locking.
-2. **Metadata/secret retrieval and production Android UI wiring remain blocked on deterministic lifecycle/concurrency/property/fuzz coverage.** No broader JNI read surface is allowed until those gates preserve byte-oriented credentials, Rust-only decrypted-state ownership, opaque handles, sanitized errors and explicit lock semantics under failure, concurrency and lifecycle transitions.
+1. **Production Android vault use is no longer blocked on JNI reachability, lifecycle/error-boundary hardening, or owner/bridge stress coverage; it is now blocked on the absence of a production Android application shell and deliberately scoped production read API.** The bounded ABI-v3 wrapper proves real Android `open`/`is-valid`/`lock`/`lock-all` behavior while decrypted databases remain Rust-owned, including panic containment, poisoned-owner fail-closed recovery, stale-generation safety, lifecycle-triggered global locking, model-based lifecycle stress, raw-handle fuzzing and concurrent owner contention.
+2. **Metadata/secret retrieval and production Android UI wiring may now begin only through the next Phase 1 gates.** The first step is production Android module/native-library wiring without widening JNI; subsequent read APIs must remain bounded and preserve byte-oriented credentials, Rust-only decrypted-state ownership, opaque handles, sanitized errors and explicit lock semantics.
 3. **Production write exposure remains constrained by the documented KDBX 4.1-only initial write envelope and must continue to preserve the established unknown-XML fail-closed and independent-reference interoperability gates as the API grows.**
 4. **Public release is blocked on completing Phases 0–6 and the release gate, including a fresh dependency/license/security review of the exact versions shipped.**
 
@@ -239,11 +239,12 @@ There is no known external organizational blocker and no open GitHub issue curre
 
 1. [x] Add the executable Android/Kotlin smoke caller for `NativeBridge.nativeCapabilityProbe`, load the produced native library on Android, and prove capability/status decoding without secrets or vault ownership crossing JNI.
 2. [x] After that runtime smoke gate passes, extend the JNI adapter over the proven `VaultCore` owner with bounded open/lock/is-valid operations, byte-oriented credentials, opaque positive handles and stable sanitized errors; prove the lifecycle on the Android emulator with a real KDBX fixture.
-3. [ ] Complete the JNI/lifecycle hardening tranche before metadata/secret retrieval or mutation APIs.
+3. [x] Complete the JNI/lifecycle hardening tranche before metadata/secret retrieval or mutation APIs.
    - [x] Prove owner-operation panic containment while the Rust mutex is held and fail closed by invalidating every live vault on both contained panics and poisoned-owner recovery.
    - [x] Prove malformed and stale handles stay sanitized and cannot affect a newly reused registry slot/generation.
    - [x] Prove an actual Android foreground → background transition invokes `Activity.onStop()` and `lock-all`, invalidating multiple simultaneously live Rust-owned vault handles.
-   - [ ] Expand deterministic lifecycle/concurrency/property/fuzz coverage over the bounded owner/handle model; no broader JNI read API is allowed until this stress gate is green.
+   - [x] Expand deterministic lifecycle/concurrency/property/fuzz coverage over the bounded owner/handle model: 20,000 model transitions, 100,000 raw-handle fuzz inputs, and eight concurrent owner workers over real KDBX sessions pass the full Foundation gate.
+4. [ ] Begin Phase 1 by creating the production Android application/modules and wiring the verified Rust library into the Android build without broadening the JNI surface yet.
 
 ## Completion status
 
