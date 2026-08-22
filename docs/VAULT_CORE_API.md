@@ -42,7 +42,7 @@ Non-secret metadata required for the UI, for example database name, root group i
 
 ### `EntrySummary`
 
-Non-secret list/search representation: identifier, title, username/display metadata, URL metadata, icon/group identity and flags indicating presence of protected fields/attachments/OTP. It must not contain password/OTP secret material/attachment bytes.
+Non-secret list/search representation: identifier, unprotected title/username/URL metadata, group identity, tags and presence/count indicators for password, OTP and attachments. If the KDBX source marks title, username or URL as protected, the summary withholds that field as absent instead of dereferencing it. It must not contain password/OTP secret material, notes/custom fields or attachment names/bytes.
 
 ### `SecretField`
 
@@ -95,9 +95,9 @@ Current summary contents:
 
 - `VaultSummary`: optional database name, root group UUID, group/entry/attachment counts and the non-secret ignored-XML-presence flag.
 - `GroupSummary`: group UUID, optional parent UUID, group name, direct child-group UUIDs and direct entry UUIDs.
-- `EntrySummary`: entry UUID, parent-group UUID, title, username, URL, tags, password-present flag, OTP-present flag and attachment count.
+- `EntrySummary`: entry UUID, parent-group UUID, unprotected-only title/username/URL, tags, password-field-present flag, OTP-field-present flag and attachment count. Protected title/username/URL source fields are returned as absent.
 
-Explicitly excluded from this metadata model and wire format are password values, OTP seeds/URIs/codes, notes, arbitrary/custom fields, attachment names and attachment bytes. The JNI source-policy gate also forbids direct secret-content access in the adapter crate; summary extraction stays in `vault-core`. Protected values remain reserved for a later explicit secret API with separate byte ownership and release/clear semantics.
+Explicitly excluded from this metadata model and wire format are password values, OTP seeds/URIs/codes, protected title/username/URL values, notes, arbitrary/custom fields, attachment names and attachment bytes. Password/OTP presence flags are derived from field-key existence and do not dereference the field contents. The JNI source-policy gate forbids direct secret-content access in the adapter crate, while the Rust-core source-policy gate forbids secret-revealing `Entry` convenience getters inside the metadata module; summary extraction stays in `vault-core`. Protected values remain reserved for a later explicit secret API with separate byte ownership and release/clear semantics.
 
 Future conceptual operations such as search, explicit secret retrieval and attachment reads remain outside ABI v4:
 
@@ -232,7 +232,7 @@ The current ingress and ownership contract is deliberately narrow:
 - owner operations are panic-contained while the Rust mutex is still held; a contained panic immediately executes `lock_all`, so decrypted sessions do not survive the failing operation and no panic payload crosses JNI;
 - an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before clearing poison and resuming service with the stable internal-error category;
 - malformed handles remain sanitized, and stale handles cannot revive or affect a newly reused registry slot/generation;
-- the JNI source-policy and binary-symbol gates allow exactly the six approved ABI-v4 exports and continue to forbid network dependencies, opportunistic JNI growth, direct password/OTP/attachment-content reads in the adapter and additional unsafe code paths;
+- the JNI source-policy and binary-symbol gates allow exactly the six approved ABI-v4 exports and continue to forbid network dependencies, opportunistic JNI growth, direct password/OTP/attachment-content reads in the adapter and additional unsafe code paths; the Rust-core source policy separately forbids secret-revealing `Entry` getters in the metadata module so protected source fields cannot be silently flattened into summaries;
 - metadata reads use the `KFM1` bounded binary envelope and stable `NotFound = -12` status, with no partial payload on failure and no secret values in successful summaries.
 
 The Android emulator gate packages a deterministic KDBX fixture and now proves the lifecycle boundary in two stages. The baseline gate proves `open → is-valid → lock → stale`. The ABI-v3 hardening gate first verifies malformed-handle behavior, then keeps two real KDBX vault handles simultaneously live, writes an app-private `READY` marker only after both are confirmed valid, and has the external harness send the emulator Home key. `PASS` is written exclusively from `Activity.onStop()` after Rust `lock-all` invalidates both handles. The stale-generation/slot-reuse case remains a Rust-level deterministic test so the Android smoke does not duplicate expensive KDF work. Decrypted `Database` objects, entry fields, registry internals and native pointers never cross the boundary.
