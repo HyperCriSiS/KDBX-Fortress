@@ -141,7 +141,7 @@ object NativeBridge {
             cursor.readText(MAX_METADATA_TAG_BYTES)
         }
         val hasPassword = cursor.readBoolean()
-        val hasTotp = cursor.readBoolean()
+        val hasOtp = cursor.readBoolean()
         val attachmentCount = cursor.readUnsignedInt()
         cursor.requireExhausted()
         return EntrySummary(
@@ -152,7 +152,7 @@ object NativeBridge {
             url = url,
             tags = tags,
             hasPassword = hasPassword,
-            hasTotp = hasTotp,
+            hasOtp = hasOtp,
             attachmentCount = attachmentCount,
         )
     }
@@ -182,7 +182,7 @@ object NativeBridge {
         check(entry.url == "https://example.test")
         check(entry.tags.isEmpty())
         check(entry.hasPassword)
-        check(!entry.hasTotp)
+        check(!entry.hasOtp)
         check(entry.attachmentCount == 0L)
     }
 
@@ -280,7 +280,7 @@ object NativeBridge {
         val url: String?,
         val tags: List<String>,
         val hasPassword: Boolean,
-        val hasTotp: Boolean,
+        val hasOtp: Boolean,
         val attachmentCount: Long,
     )
 
