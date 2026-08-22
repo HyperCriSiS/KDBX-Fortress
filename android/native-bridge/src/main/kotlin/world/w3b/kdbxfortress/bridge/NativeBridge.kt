@@ -73,7 +73,7 @@ object NativeBridge {
 
         val invalidMetadata = nativeReadMetadata(0L, METADATA_REQUEST_VAULT, null)
         val cursor = metadataCursor(invalidMetadata, expectedKind = 0, requireSuccess = false)
-        check(cursor.status == STATUS_INVALID_HANDLE)
+        check(cursor.status == STATUS_INVALID_HANDLE.toLong())
         cursor.requireExhausted()
     }
 
