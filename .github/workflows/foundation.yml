@@ -184,7 +184,10 @@ jobs:
           cargo test --manifest-path rust/Cargo.toml --package kdbx-fortress-vault-core --test kdbx_roundtrip
 
       - name: Reopen Fortress outputs with KeePass 2.x
-        shell: pwsh
+        # KeePass 2.x targets the classic .NET Framework and uses
+        # System.Security.Cryptography.ProtectedMemory, which is unavailable
+        # when its assembly is loaded into PowerShell 7/.NET Core.
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
 
