@@ -8,6 +8,7 @@
 mod bounded_open;
 mod credentials;
 mod handle_registry;
+mod metadata;
 mod postflight;
 mod preflight;
 mod vault_owner;
@@ -17,6 +18,10 @@ pub use bounded_open::{
 };
 pub use credentials::{SecretBytes, VaultCredentialError, VaultCredentials};
 pub use handle_registry::{VaultHandle, VaultHandleError};
+pub use metadata::{
+    EntrySummary, GroupSummary, METADATA_ID_BYTES, MetadataId, MetadataReadError,
+    MetadataReadLimits, VaultSummary,
+};
 pub use postflight::{KdbxPostDecryptError, KdbxPostDecryptLimits, validate_decrypted_database};
 pub use preflight::{
     KdbxPreflightError, KdbxPreflightReport, KdbxResourceLimits, KdfField, KdfPreflight,
