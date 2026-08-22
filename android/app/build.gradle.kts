@@ -3,27 +3,15 @@ plugins {
 }
 
 android {
-    namespace = "world.w3b.kdbxfortress.smoke"
+    namespace = "world.w3b.kdbxfortress"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "world.w3b.kdbxfortress.smoke"
+        applicationId = "world.w3b.kdbxfortress"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "0.0.0-smoke"
-    }
-
-    buildTypes {
-        debug {
-            isDebuggable = true
-        }
-    }
-
-    sourceSets {
-        getByName("main") {
-            assets.srcDir("../../test-fixtures/kdbx")
-        }
+        versionName = "0.1.0-dev"
     }
 
     compileOptions {

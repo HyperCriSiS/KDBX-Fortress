@@ -90,10 +90,16 @@ jobs:
             --target x86_64-linux-android
           install -D \
             rust/target/x86_64-linux-android/debug/libkdbx_fortress_android_jni.so \
-            android/smoke-app/src/main/jniLibs/x86_64/libkdbx_fortress_android_jni.so
+            android/native-bridge/src/main/jniLibs/x86_64/libkdbx_fortress_android_jni.so
 
-      - name: Assemble smoke APK
-        run: gradle --no-daemon -p android :smoke-app:assembleDebug
+      - name: Assemble production and smoke APKs
+        run: gradle --no-daemon -p android :app:assembleDebug :smoke-app:assembleDebug
+
+      - name: Verify production APK packages JNI library
+        run: |
+          set -euo pipefail
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk \
+            | grep -F "lib/x86_64/libkdbx_fortress_android_jni.so"
 
       - name: Enable KVM group permissions
         run: |
