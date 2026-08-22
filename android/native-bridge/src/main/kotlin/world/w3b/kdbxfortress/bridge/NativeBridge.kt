@@ -1,6 +1,6 @@
 package world.w3b.kdbxfortress.bridge
 
-internal object NativeBridge {
+object NativeBridge {
     private const val STATUS_OK = 0L
     private const val STATUS_UNSUPPORTED_REQUEST = 1L
     private const val STATUS_INVALID_HANDLE = -9
@@ -67,18 +67,22 @@ internal object NativeBridge {
 
     fun verifyLifecycleLockAll(handles: LongArray) {
         check(handles.isNotEmpty())
-        check(nativeLockAllVaults() == 0)
+        lockAllVaults()
         handles.forEach { handle ->
             check(handle > 0L)
             check(nativeIsVaultHandleValid(handle) == 0)
             // A stale but structurally valid handle remains an idempotent lock.
             check(nativeLockVault(handle) == 0)
         }
+        lockAllVaults()
+    }
+
+    fun lockAllVaults() {
         check(nativeLockAllVaults() == 0)
     }
 
     fun lockAllForFailureCleanup() {
-        check(nativeLockAllVaults() == 0)
+        lockAllVaults()
     }
 
     private fun openVault(kdbx: ByteArray, password: ByteArray): Long {

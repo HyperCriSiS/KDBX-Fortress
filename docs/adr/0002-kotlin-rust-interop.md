@@ -28,14 +28,15 @@ The implemented boundary lives in `rust/android-jni` and currently uses adapter 
 
 The executable Android/Kotlin gate is complete:
 
-- the Android build loads the Rust shared library and validates capability/status decoding;
+- the production `:app` and CI-only `:smoke-app` consume one shared `:native-bridge` module that owns the exact JNI class; CI builds both APKs and verifies the production APK contains the Rust shared library;
+- the Android runtime gate loads that shared Rust library and validates capability/status decoding;
 - a deterministic real KDBX fixture proves Kotlin → JNI → Rust open/valid/lock/stale behavior;
 - the ABI-v3 lifecycle gate keeps two real Rust-owned vault sessions live, waits for an app-private `READY` marker, sends the emulator Home key, and permits `PASS` only from `Activity.onStop()` after `lock-all` invalidates both handles;
 - deterministic stress tests add 20,000 model-based handle-registry transitions, 100,000 raw-handle fuzz inputs and eight concurrent owner workers over real KDBX sessions without stale-handle revival or owner poisoning.
 
 ## Phase-1 constraint
 
-This accepted interop design does **not** authorize an unbounded read surface. Phase 1 first creates the production Android modules and wires the already-proven native library. Metadata listing/search and explicit single-secret retrieval may be added only through narrowly scoped operations that preserve Rust-only database ownership, stable sanitized errors and explicit lock semantics. Mutation and persistence remain later gates.
+This accepted interop design does **not** authorize an unbounded read surface. The production Android modules and shared native-library wiring are now in place; the JNI surface remains frozen at the five proven ABI-v3 lifecycle exports while the Material/Compose shell is established. Metadata listing/search and explicit single-secret retrieval may be added only through narrowly scoped operations that preserve Rust-only database ownership, stable sanitized errors and explicit lock semantics. Mutation and persistence remain later gates.
 
 ## Rejected for the core
 

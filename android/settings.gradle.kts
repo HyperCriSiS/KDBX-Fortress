@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KDBXFortressAndroidSmoke"
-include(":smoke-app")
+rootProject.name = "KDBXFortressAndroid"
+include(":app", ":native-bridge", ":smoke-app")
