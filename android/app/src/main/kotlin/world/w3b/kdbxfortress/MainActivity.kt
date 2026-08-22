@@ -45,11 +45,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        selectedDocument?.let { selection ->
-            outState.putString(STATE_DOCUMENT_URI, selection.uri.toString())
-            outState.putString(STATE_DOCUMENT_NAME, selection.displayName)
-            outState.putBoolean(STATE_DOCUMENT_PERSISTENT, selection.persistentAccess)
-        }
+        selectedDocument
+            ?.takeIf(VaultDocumentSelection::persistentAccess)
+            ?.let { selection ->
+                outState.putString(STATE_DOCUMENT_URI, selection.uri.toString())
+                outState.putString(STATE_DOCUMENT_NAME, selection.displayName)
+                outState.putBoolean(STATE_DOCUMENT_PERSISTENT, true)
+            }
         super.onSaveInstanceState(outState)
     }
 
@@ -59,12 +61,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun Bundle.restoreDocumentSelection(): VaultDocumentSelection? {
+        if (!getBoolean(STATE_DOCUMENT_PERSISTENT)) return null
         val uri = getString(STATE_DOCUMENT_URI)?.let { android.net.Uri.parse(it) } ?: return null
         val name = getString(STATE_DOCUMENT_NAME) ?: return null
         return VaultDocumentSelection(
             uri = uri,
             displayName = name,
-            persistentAccess = getBoolean(STATE_DOCUMENT_PERSISTENT),
+            persistentAccess = true,
         )
     }
 
