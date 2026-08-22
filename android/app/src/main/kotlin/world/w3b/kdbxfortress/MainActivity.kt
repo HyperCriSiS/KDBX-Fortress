@@ -1,30 +1,27 @@
 package world.w3b.kdbxfortress
 
-import android.app.Activity
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import world.w3b.kdbxfortress.bridge.NativeBridge
+import world.w3b.kdbxfortress.ui.KdbxFortressApp
+import world.w3b.kdbxfortress.ui.theme.KdbxFortressTheme
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         val nativeReady = runCatching {
             NativeBridge.verifyRuntimeBoundary()
         }.isSuccess
 
-        setContentView(
-            TextView(this).apply {
-                gravity = Gravity.CENTER
-                textSize = 20f
-                text = if (nativeReady) {
-                    "KDBX Fortress\nNative vault core ready"
-                } else {
-                    "KDBX Fortress\nNative vault core unavailable"
-                }
-            },
-        )
+        setContent {
+            KdbxFortressTheme {
+                KdbxFortressApp(nativeReady = nativeReady)
+            }
+        }
     }
 
     override fun onStop() {

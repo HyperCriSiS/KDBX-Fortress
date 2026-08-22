@@ -1,16 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+production_package="world.w3b.kdbxfortress"
+production_apk="android/app/build/outputs/apk/debug/app-debug.apk"
+production_component="$production_package/.MainActivity"
+
 package="world.w3b.kdbxfortress.smoke"
 apk="android/smoke-app/build/outputs/apk/debug/smoke-app-debug.apk"
 component="$package/.SmokeActivity"
 ready_file="files/jni-smoke-ready"
 result_file="files/jni-smoke-result"
 
+if [[ ! -f "$production_apk" ]]; then
+  echo "Production APK not found: $production_apk" >&2
+  exit 1
+fi
+
 if [[ ! -f "$apk" ]]; then
   echo "Smoke APK not found: $apk" >&2
   exit 1
 fi
+
+# Prove that the real production Activity starts successfully with the Compose
+# shell and shared native-bridge module before running the deeper fixture probe.
+adb install -r "$production_apk"
+adb shell pm clear "$production_package" >/dev/null
+adb logcat -c
+adb shell am start -W -n "$production_component"
+sleep 1
+
+if ! adb shell pidof "$production_package" >/dev/null; then
+  echo "Production Compose shell did not remain alive after launch." >&2
+  adb logcat -d -t 300 "*:S" AndroidRuntime:E KDBXFortress:D || true
+  exit 1
+fi
+
+if ! adb shell dumpsys activity activities | grep -Fq "$production_package/.MainActivity"; then
+  echo "Production MainActivity is not present in the active task after launch." >&2
+  adb logcat -d -t 300 "*:S" AndroidRuntime:E KDBXFortress:D || true
+  exit 1
+fi
+
+echo "Android production Compose shell: PASS"
+adb shell input keyevent KEYCODE_HOME
+adb shell am force-stop "$production_package"
 
 adb install -r "$apk"
 adb shell pm clear "$package" >/dev/null

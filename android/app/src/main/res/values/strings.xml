@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KDBX Fortress</string>
+    <string name="destination_vault">Vault</string>
+    <string name="destination_settings">Settings</string>
+    <string name="vault_empty_title">No vault open</string>
+    <string name="vault_empty_body">Open a KDBX vault to browse entries securely.</string>
+    <string name="native_core_ready">Secure vault core ready</string>
+    <string name="native_core_unavailable">Secure vault core unavailable</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_body">Security, Autofill and vault preferences will appear here as those features are enabled.</string>
+</resources>
