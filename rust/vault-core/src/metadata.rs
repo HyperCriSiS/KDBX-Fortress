@@ -6,7 +6,7 @@
 
 use keepass::{
     Database,
-    db::{EntryRef, GroupRef},
+    db::{fields, EntryRef, GroupRef, Value},
 };
 
 /// Fixed byte width of a KeePass object UUID exposed by the metadata API.
@@ -107,17 +107,17 @@ pub struct EntrySummary {
     pub id: MetadataId,
     /// Current parent-group identifier.
     pub parent_group_id: MetadataId,
-    /// Optional entry title.
+    /// Optional unprotected entry title. Protected source values are withheld.
     pub title: Option<String>,
-    /// Optional username.
+    /// Optional unprotected username. Protected source values are withheld.
     pub username: Option<String>,
-    /// Optional URL.
+    /// Optional unprotected URL. Protected source values are withheld.
     pub url: Option<String>,
     /// Entry tags. No custom fields are included.
     pub tags: Vec<String>,
-    /// Whether a non-empty password field exists. The password value is excluded.
+    /// Whether a password field exists. Its value is never inspected here.
     pub has_password: bool,
-    /// Whether a non-empty raw OTP field exists. The OTP seed/value is excluded.
+    /// Whether a raw OTP field exists. Its value is never inspected here.
     pub has_otp: bool,
     /// Attachment count only. Attachment names and bytes are excluded.
     pub attachment_count: u32,
@@ -143,6 +143,16 @@ fn bounded_optional_text(
     maximum: usize,
 ) -> Result<Option<String>, MetadataReadError> {
     value.map(|value| bounded_text(value, maximum)).transpose()
+}
+
+fn bounded_unprotected_field(
+    value: Option<&Value<String>>,
+    maximum: usize,
+) -> Result<Option<String>, MetadataReadError> {
+    match value {
+        None | Some(Value::Protected(_)) => Ok(None),
+        Some(Value::Unprotected(value)) => bounded_text(value, maximum).map(Some),
+    }
 }
 
 fn bounded_count(value: usize) -> Result<u32, MetadataReadError> {
@@ -228,14 +238,38 @@ pub(crate) fn summarize_entry(
     Ok(EntrySummary {
         id: id_from_entry(&entry),
         parent_group_id: id_from_group(&entry.parent()),
-        title: bounded_optional_text(entry.get_title(), limits.max_text_bytes)?,
-        username: bounded_optional_text(entry.get_username(), limits.max_text_bytes)?,
-        url: bounded_optional_text(entry.get_url(), limits.max_text_bytes)?,
+        title: bounded_unprotected_field(entry.fields.get(fields::TITLE), limits.max_text_bytes)?,
+        username: bounded_unprotected_field(
+            entry.fields.get(fields::USERNAME),
+            limits.max_text_bytes,
+        )?,
+        url: bounded_unprotected_field(entry.fields.get(fields::URL), limits.max_text_bytes)?,
         tags,
-        has_password: entry.get_password().is_some_and(|value| !value.is_empty()),
-        has_otp: entry
-            .get_raw_otp_value()
-            .is_some_and(|value| !value.is_empty()),
+        has_password: entry.fields.contains_key(fields::PASSWORD),
+        has_otp: entry.fields.contains_key(fields::OTP),
         attachment_count: bounded_count(entry.attachments().count())?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MetadataReadError, bounded_unprotected_field};
+    use keepass::db::Value;
+
+    #[test]
+    fn protected_fields_are_withheld_without_exposing_their_value() {
+        let protected = Value::protected("must-not-cross");
+        let unprotected = Value::unprotected("visible");
+
+        assert_eq!(bounded_unprotected_field(Some(&protected), 64), Ok(None));
+        assert_eq!(
+            bounded_unprotected_field(Some(&unprotected), 64),
+            Ok(Some("visible".to_owned()))
+        );
+        assert_eq!(
+            bounded_unprotected_field(Some(&unprotected), 3),
+            Err(MetadataReadError::LimitExceeded)
+        );
+        assert_eq!(format!("{protected}"), "[redacted]");
+    }
 }
