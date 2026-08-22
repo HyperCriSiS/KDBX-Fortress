@@ -42,7 +42,7 @@ Non-secret metadata required for the UI, for example database name, root group i
 
 ### `EntrySummary`
 
-Non-secret list/search representation: identifier, title, username/display metadata, URL metadata, icon/group identity and flags indicating presence of protected fields/attachments/TOTP. It must not contain password/TOTP seed/attachment bytes.
+Non-secret list/search representation: identifier, title, username/display metadata, URL metadata, icon/group identity and flags indicating presence of protected fields/attachments/OTP. It must not contain password/OTP secret material/attachment bytes.
 
 ### `SecretField`
 
@@ -95,7 +95,7 @@ Current summary contents:
 
 - `VaultSummary`: optional database name, root group UUID, group/entry/attachment counts and the non-secret ignored-XML-presence flag.
 - `GroupSummary`: group UUID, optional parent UUID, group name, direct child-group UUIDs and direct entry UUIDs.
-- `EntrySummary`: entry UUID, parent-group UUID, title, username, URL, tags, password-present flag, TOTP-present flag and attachment count.
+- `EntrySummary`: entry UUID, parent-group UUID, title, username, URL, tags, password-present flag, OTP-present flag and attachment count.
 
 Explicitly excluded from this metadata model and wire format are password values, OTP seeds/URIs/codes, notes, arbitrary/custom fields, attachment names and attachment bytes. The JNI source-policy gate also forbids direct secret-content access in the adapter crate; summary extraction stays in `vault-core`. Protected values remain reserved for a later explicit secret API with separate byte ownership and release/clear semantics.
 
@@ -230,7 +230,7 @@ The current ingress and ownership contract is deliberately narrow:
 - KDBX engine diagnostics are collapsed into sanitized categories rather than copied into Kotlin;
 - Rust copies of credential byte vectors are moved immediately into `VaultCredentials` zeroizing owners;
 - owner operations are panic-contained while the Rust mutex is still held; a contained panic immediately executes `lock_all`, so decrypted sessions do not survive the failing operation and no panic payload crosses JNI;
-- an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before poison is cleared and service resumes with the stable internal-error category;
+- an already-poisoned bridge-owner mutex also fails closed by locking all retained vaults before clearing poison and resuming service with the stable internal-error category;
 - malformed handles remain sanitized, and stale handles cannot revive or affect a newly reused registry slot/generation;
 - the JNI source-policy and binary-symbol gates allow exactly the six approved ABI-v4 exports and continue to forbid network dependencies, opportunistic JNI growth, direct password/OTP/attachment-content reads in the adapter and additional unsafe code paths;
 - metadata reads use the `KFM1` bounded binary envelope and stable `NotFound = -12` status, with no partial payload on failure and no secret values in successful summaries.
