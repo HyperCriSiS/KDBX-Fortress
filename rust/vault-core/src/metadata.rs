@@ -118,7 +118,7 @@ pub struct EntrySummary {
     /// Whether a non-empty password field exists. The password value is excluded.
     pub has_password: bool,
     /// Whether a non-empty raw OTP field exists. The OTP seed/value is excluded.
-    pub has_totp: bool,
+    pub has_otp: bool,
     /// Attachment count only. Attachment names and bytes are excluded.
     pub attachment_count: u32,
 }
@@ -233,7 +233,7 @@ pub(crate) fn summarize_entry(
         url: bounded_optional_text(entry.get_url(), limits.max_text_bytes)?,
         tags,
         has_password: entry.get_password().is_some_and(|value| !value.is_empty()),
-        has_totp: entry
+        has_otp: entry
             .get_raw_otp_value()
             .is_some_and(|value| !value.is_empty()),
         attachment_count: bounded_count(entry.attachments().count())?,
