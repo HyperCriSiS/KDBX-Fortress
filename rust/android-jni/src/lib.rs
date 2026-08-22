@@ -545,10 +545,8 @@ mod tests {
                     };
 
                     let result = match worker % 4 {
-                        0 => with_core_mutex(&owner, |core| {
-                            is_handle_valid_on_core(core, handle)
-                        })
-                        .map(|_| ()),
+                        0 => with_core_mutex(&owner, |core| is_handle_valid_on_core(core, handle))
+                            .map(|_| ()),
                         1 => with_core_mutex(&owner, |core| {
                             if iteration == ITERATIONS / 2 {
                                 let _ = lock_vault_on_core(core, handle);

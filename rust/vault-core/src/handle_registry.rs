@@ -408,7 +408,9 @@ mod tests {
                     if live.len() < CAPACITY {
                         let value = next_value;
                         next_value = next_value.wrapping_add(1);
-                        let handle = registry.insert(value).expect("model insert within capacity");
+                        let handle = registry
+                            .insert(value)
+                            .expect("model insert within capacity");
                         assert!(seen.insert(handle), "a raw handle must never be reissued");
                         live.push((handle, value));
                     } else {
