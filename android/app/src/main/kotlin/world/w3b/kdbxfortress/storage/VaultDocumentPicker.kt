@@ -48,6 +48,24 @@ private class OpenKdbxDocumentContract : ActivityResultContract<Unit, DocumentGr
     }
 }
 
+private class OpenKeyFileDocumentContract : ActivityResultContract<Unit, DocumentGrant?>() {
+    override fun createIntent(context: Context, input: Unit): Intent =
+        Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+            )
+        }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): DocumentGrant? {
+        if (resultCode != Activity.RESULT_OK) return null
+        val uri = intent?.data ?: return null
+        return DocumentGrant(uri = uri, flags = intent.flags)
+    }
+}
+
 private class CreateKdbxDocumentContract : ActivityResultContract<String, DocumentGrant?>() {
     override fun createIntent(context: Context, input: String): Intent =
         Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
@@ -71,12 +89,18 @@ private class CreateKdbxDocumentContract : ActivityResultContract<String, Docume
 class VaultDocumentPicker(
     activity: ComponentActivity,
     private val onSelected: (VaultDocumentSelection) -> Unit,
+    private val onKeyFileSelected: (VaultDocumentSelection) -> Unit,
 ) {
     private val contentResolver = activity.contentResolver
 
     private val openDocument = activity.registerForActivityResult(OpenKdbxDocumentContract()) { grant ->
         grant?.let { onSelected(selectionFor(it, allowWrite = false)) }
     }
+
+    private val openKeyFile =
+        activity.registerForActivityResult(OpenKeyFileDocumentContract()) { grant ->
+            grant?.let { onKeyFileSelected(selectionFor(it, allowWrite = false)) }
+        }
 
     private val createDocument =
         activity.registerForActivityResult(CreateKdbxDocumentContract()) { grant ->
@@ -85,6 +109,10 @@ class VaultDocumentPicker(
 
     fun openVault() {
         openDocument.launch(Unit)
+    }
+
+    fun openKeyFile() {
+        openKeyFile.launch(Unit)
     }
 
     /**

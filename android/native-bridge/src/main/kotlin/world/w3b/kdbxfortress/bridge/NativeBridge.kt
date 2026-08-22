@@ -7,6 +7,8 @@ object NativeBridge {
     private const val CORE_ABI_REQUEST = 1
     private const val ADAPTER_ABI_REQUEST = 2
     private const val EXPECTED_ADAPTER_ABI = 4L
+    const val MAX_PASSWORD_BYTES = 4 * 1024
+    const val MAX_KEYFILE_BYTES = 1024 * 1024
 
     private const val METADATA_REQUEST_VAULT = 1
     private const val METADATA_REQUEST_GROUP = 2
@@ -65,6 +67,36 @@ object NativeBridge {
         check(unsupported.value == 0L)
     }
 
+    fun openVault(
+        kdbx: ByteArray,
+        password: ByteArray?,
+        keyfile: ByteArray?,
+    ): Long {
+        require(password == null || password.size <= MAX_PASSWORD_BYTES)
+        require(keyfile == null || keyfile.size <= MAX_KEYFILE_BYTES)
+
+        val result = nativeOpenVault(kdbx, password, keyfile)
+        if (result <= 0L) {
+            throw NativeBoundaryException(NativeFailure.fromStatus(result.toInt()))
+        }
+        return result
+    }
+
+    fun lockVault(handle: Long) {
+        val status = nativeLockVault(handle)
+        if (status != 0) {
+            throw NativeBoundaryException(NativeFailure.fromStatus(status))
+        }
+    }
+
+    fun isVaultHandleValid(handle: Long): Boolean {
+        val status = nativeIsVaultHandleValid(handle)
+        if (status < 0) {
+            throw NativeBoundaryException(NativeFailure.fromStatus(status))
+        }
+        return status == 1
+    }
+
     fun verifyMalformedHandleBoundary() {
         check(nativeIsVaultHandleValid(0L) == 0)
         check(nativeIsVaultHandleValid(-1L) == 0)
@@ -80,8 +112,8 @@ object NativeBridge {
     fun openLifecycleProbeVaults(kdbx: ByteArray, password: ByteArray): LongArray {
         val handles = LongArray(2)
         try {
-            handles[0] = openVault(kdbx, password)
-            handles[1] = openVault(kdbx, password)
+            handles[0] = openVault(kdbx, password, null)
+            handles[1] = openVault(kdbx, password, null)
             handles.forEach { handle -> check(nativeIsVaultHandleValid(handle) == 1) }
             return handles
         } catch (error: Throwable) {
@@ -206,12 +238,6 @@ object NativeBridge {
         lockAllVaults()
     }
 
-    private fun openVault(kdbx: ByteArray, password: ByteArray): Long {
-        val handle = nativeOpenVault(kdbx, password, null)
-        check(handle > 0L) { "nativeOpenVault failed with status $handle" }
-        return handle
-    }
-
     private fun metadataCursor(
         response: ByteArray?,
         expectedKind: Int,
@@ -226,8 +252,8 @@ object NativeBridge {
         check(cursor.readByte() == '1'.code)
         val status = cursor.readInt()
         val kind = cursor.readByte()
-        if (requireSuccess) {
-            check(status == 0) { "nativeReadMetadata failed with status $status" }
+        if (requireSuccess && status != 0) {
+            throw NativeBoundaryException(NativeFailure.fromStatus(status))
         }
         check(kind == expectedKind)
         cursor.status = status.toLong()
@@ -254,6 +280,31 @@ object NativeBridge {
 
         override fun hashCode(): Int = bytes.contentHashCode()
     }
+
+    enum class NativeFailure(val status: Int) {
+        InvalidArgument(-1),
+        JniError(-2),
+        InvalidCredentialMaterial(-3),
+        InvalidInput(-4),
+        UnsupportedFormat(-5),
+        ResourceLimit(-6),
+        OpenRejected(-7),
+        CapacityExceeded(-8),
+        InvalidHandle(-9),
+        Internal(-10),
+        PanicContained(-11),
+        NotFound(-12),
+        Unknown(Int.MIN_VALUE);
+
+        companion object {
+            internal fun fromStatus(status: Int): NativeFailure =
+                entries.firstOrNull { it.status == status } ?: Unknown
+        }
+    }
+
+    class NativeBoundaryException(
+        val failure: NativeFailure,
+    ) : IllegalStateException("native vault operation failed: ${failure.name}")
 
     data class VaultSummary(
         val databaseName: String?,
